@@ -1,7 +1,7 @@
 import { CheerioDoc, getProseText } from "./dom";
 import { DetectedLanguage, detectLanguage } from "./language";
 import { splitWords } from "./textUtils";
-import { CategoryResult, Finding, gradeFromScore, scoreFromFindings } from "./types";
+import { CategoryResult, Finding, FindingItem, gradeFromScore, scoreFromFindings } from "./types";
 
 // LanguageTool needs a region variant for some languages; bare codes 404/400.
 // Only used when we're reasonably confident (html-lang or stopword match) —
@@ -28,24 +28,63 @@ interface LanguageToolMatch {
 const MAX_CHARS = 9000;
 const MAX_ITEMS = 25;
 
-function describeMatch(m: LanguageToolMatch): string {
-  const flagged =
-    m.context && m.context.length > 0
-      ? m.context.text.slice(m.context.offset, m.context.offset + m.context.length).trim()
-      : undefined;
+function getFlaggedText(m: LanguageToolMatch): string | undefined {
+  return m.context && m.context.length > 0
+    ? m.context.text.slice(m.context.offset, m.context.offset + m.context.length).trim()
+    : undefined;
+}
+
+// Business/technical initialisms (EM, EMs, CXO, CEOs, KPI, ROI, SaaS, ...)
+// aren't in any dictionary, so a spell-checker reads them as typos. They're
+// short, mostly-uppercase tokens (optionally pluralized with a trailing "s")
+// — real misspelled words don't look like that, so this is a safe filter.
+function isLikelyAcronym(word: string): boolean {
+  const stripped = word.replace(/^[^A-Za-z]+|[^A-Za-z]+$/g, "");
+  if (stripped.length < 2 || stripped.length > 8) return false;
+  const core = stripped.replace(/(?:'s|s)$/, "");
+  if (core.length < 2) return false;
+  const upper = (core.match(/[A-Z]/g) ?? []).length;
+  const letters = (core.match(/[A-Za-z]/g) ?? []).length;
+  return upper >= 2 && upper / letters >= 0.5;
+}
+
+// A "Text Fragment" (#:~:text=...) makes the browser scroll to and highlight
+// the exact text on the live page — works on any site, no cooperation needed
+// from it. Supported in Chromium browsers (Chrome/Edge); other browsers just
+// load the page normally, so this degrades harmlessly where unsupported.
+function buildTextFragmentUrl(pageUrl: string, snippet: string): string | undefined {
+  const trimmed = snippet.trim();
+  // Too short and it's ambiguous (could match unrelated text) or unlikely to
+  // be a stable, unique anchor — skip the link rather than send it somewhere wrong.
+  if (trimmed.length < 3) return undefined;
+  try {
+    const u = new URL(pageUrl);
+    u.hash = `:~:text=${encodeURIComponent(trimmed)}`;
+    return u.toString();
+  } catch {
+    return undefined;
+  }
+}
+
+function describeMatch(m: LanguageToolMatch, pageUrl: string): FindingItem {
+  const flagged = getFlaggedText(m);
   const suggestions = (m.replacements ?? [])
     .slice(0, 3)
     .map((r) => r.value)
     .filter(Boolean);
   const message = m.shortMessage || m.message;
   const suggestionText = suggestions.length > 0 ? ` (suggested: "${suggestions.join('", "')}")` : "";
-  return flagged ? `"${flagged}" — ${message}${suggestionText}` : `${message}${suggestionText}`;
+  const text = flagged ? `"${flagged}" — ${message}${suggestionText}` : `${message}${suggestionText}`;
+  return {
+    text,
+    href: flagged ? buildTextFragmentUrl(pageUrl, flagged) : undefined,
+  };
 }
 
-function itemize(matches: LanguageToolMatch[]): string[] {
-  const items = matches.slice(0, MAX_ITEMS).map(describeMatch);
+function itemize(matches: LanguageToolMatch[], pageUrl: string): FindingItem[] {
+  const items = matches.slice(0, MAX_ITEMS).map((m) => describeMatch(m, pageUrl));
   if (matches.length > MAX_ITEMS) {
-    items.push(`…and ${matches.length - MAX_ITEMS} more.`);
+    items.push({ text: `…and ${matches.length - MAX_ITEMS} more.` });
   }
   return items;
 }
@@ -99,7 +138,7 @@ function heuristicIssues(text: string): LanguageToolMatch[] {
   return issues;
 }
 
-export async function analyzeGrammar($: CheerioDoc): Promise<CategoryResult> {
+export async function analyzeGrammar($: CheerioDoc, pageUrl: string): Promise<CategoryResult> {
   const findings: Finding[] = [];
   const text = getProseText($).slice(0, MAX_CHARS);
   const wordCount = splitWords(text).length;
@@ -144,6 +183,13 @@ export async function analyzeGrammar($: CheerioDoc): Promise<CategoryResult> {
     (m) => !/British English|American English/i.test(m.message)
   );
 
+  // Acronyms/initialisms (EMs, CXOs, KPIs, ROI, SaaS...) aren't spelling or
+  // grammar mistakes just because they're absent from a dictionary.
+  matches = matches.filter((m) => {
+    const flagged = getFlaggedText(m);
+    return !flagged || !isLikelyAcronym(flagged);
+  });
+
   const spelling = matches.filter((m) => m.rule?.issueType === "misspelling");
   const grammarIssues = matches.filter(
     (m) => m.rule?.issueType && m.rule.issueType !== "misspelling"
@@ -164,7 +210,7 @@ export async function analyzeGrammar($: CheerioDoc): Promise<CategoryResult> {
             spelling[0] ? `, e.g. "${spelling[0].message}"` : ""
           }.`,
     weight: 3,
-    items: spelling.length > 0 ? itemize(spelling) : undefined,
+    items: spelling.length > 0 ? itemize(spelling, pageUrl) : undefined,
   });
 
   findings.push({
@@ -178,7 +224,7 @@ export async function analyzeGrammar($: CheerioDoc): Promise<CategoryResult> {
             grammarIssues[0] ? `, e.g. "${grammarIssues[0].message}"` : ""
           }.`,
     weight: 3,
-    items: grammarIssues.length > 0 ? itemize(grammarIssues) : undefined,
+    items: grammarIssues.length > 0 ? itemize(grammarIssues, pageUrl) : undefined,
   });
 
   findings.push({
@@ -198,7 +244,7 @@ export async function analyzeGrammar($: CheerioDoc): Promise<CategoryResult> {
       status: other.length <= 2 ? "warn" : "fail",
       detail: `${other.length} other issue(s), e.g. "${other[0].message}".`,
       weight: 1,
-      items: itemize(other),
+      items: itemize(other, pageUrl),
     });
   }
 

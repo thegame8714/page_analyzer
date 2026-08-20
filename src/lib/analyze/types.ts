@@ -1,5 +1,12 @@
 export type FindingStatus = "pass" | "warn" | "fail" | "info";
 
+export interface FindingItem {
+  text: string;
+  /** Deep link to where this item appears on the live page, e.g. a Text
+   * Fragment URL (`#:~:text=...`) that scrolls to and highlights it. */
+  href?: string;
+}
+
 export interface Finding {
   id: string;
   label: string;
@@ -9,7 +16,7 @@ export interface Finding {
   /** Optional itemized breakdown (e.g. each individual spelling error), shown
    * in the expanded category card. The top-recommendations list only ever
    * uses `detail`, so this doesn't affect that summary. */
-  items?: string[];
+  items?: FindingItem[];
 }
 
 export interface CategoryResult {

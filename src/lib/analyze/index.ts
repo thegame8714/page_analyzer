@@ -67,7 +67,7 @@ export async function analyzeLandingPage(rawUrl: string): Promise<AnalysisReport
 
   const [geo, grammar] = await Promise.all([
     analyzeGeo($, page.finalUrl),
-    analyzeGrammar($),
+    analyzeGrammar($, page.finalUrl),
   ]);
   const seo = analyzeSeo($, page.finalUrl);
   const clarity = analyzeClarity($);

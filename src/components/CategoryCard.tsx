@@ -52,7 +52,17 @@ export function CategoryCard({ category }: { category: CategoryResult }) {
                     <ul className="mt-2 space-y-1 rounded-lg bg-slate-950/60 p-3 text-xs text-slate-400">
                       {f.items.map((item, i) => (
                         <li key={i} className="break-words">
-                          {item}
+                          {item.text}
+                          {item.href && (
+                            <a
+                              href={item.href}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="ml-1.5 whitespace-nowrap text-emerald-400 hover:text-emerald-300 hover:underline"
+                            >
+                              View on page ↗
+                            </a>
+                          )}
                         </li>
                       ))}
                     </ul>
