@@ -2,7 +2,10 @@ import { CheerioDoc, getHeadings, getJsonLdBlocks, getMainContentText, jsonLdTyp
 import { splitSentences, splitWords } from "./textUtils";
 import { CategoryResult, Finding, gradeFromScore, scoreFromFindings } from "./types";
 
-const QUESTION_WORDS = /^(what|why|how|when|where|who|which|can|does|is|are|should)\b/i;
+// English + Italian interrogatives — headings in other languages just won't
+// be classified as question-style, same as before this was extended.
+const QUESTION_WORDS =
+  /^(what|why|how|when|where|who|which|can|does|is|are|should|cosa|perch(é|e)|come|quando|dove|chi|quale|quali|posso|devo|dobbiamo|è|sono|serve|conviene)\b/i;
 
 async function checkLlmsTxt(finalUrl: string): Promise<boolean> {
   try {

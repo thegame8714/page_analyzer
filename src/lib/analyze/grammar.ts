@@ -1,6 +1,19 @@
 import { CheerioDoc, getProseText } from "./dom";
+import { DetectedLanguage, detectLanguage } from "./language";
 import { splitWords } from "./textUtils";
 import { CategoryResult, Finding, gradeFromScore, scoreFromFindings } from "./types";
+
+// LanguageTool needs a region variant for some languages; bare codes 404/400.
+// Only used when we're reasonably confident (html-lang or stopword match) —
+// otherwise we pass "auto" and let LanguageTool detect it itself.
+const LANGUAGE_TOOL_CODES: Record<string, string> = {
+  en: "en-US",
+  it: "it",
+  es: "es",
+  fr: "fr",
+  de: "de-DE",
+  pt: "pt-PT",
+};
 
 interface LanguageToolMatch {
   message: string;
@@ -37,7 +50,10 @@ function itemize(matches: LanguageToolMatch[]): string[] {
   return items;
 }
 
-async function callLanguageTool(text: string): Promise<LanguageToolMatch[] | null> {
+async function callLanguageTool(
+  text: string,
+  languageToolCode: string
+): Promise<LanguageToolMatch[] | null> {
   try {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 12000);
@@ -47,7 +63,7 @@ async function callLanguageTool(text: string): Promise<LanguageToolMatch[] | nul
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: new URLSearchParams({
         text,
-        language: "auto",
+        language: languageToolCode,
         enabledOnly: "false",
       }),
     });
@@ -87,6 +103,10 @@ export async function analyzeGrammar($: CheerioDoc): Promise<CategoryResult> {
   const findings: Finding[] = [];
   const text = getProseText($).slice(0, MAX_CHARS);
   const wordCount = splitWords(text).length;
+  const language: DetectedLanguage = detectLanguage($, text);
+  const summary = `Spelling and grammar correctness of the on-page copy. Detected content language: ${language.name}${
+    language.source === "html-lang" ? "" : " (inferred — no <html lang> attribute set)"
+  }.`;
 
   if (wordCount < 20) {
     findings.push({
@@ -102,12 +122,16 @@ export async function analyzeGrammar($: CheerioDoc): Promise<CategoryResult> {
       name: "Grammar",
       score,
       grade: gradeFromScore(score),
-      summary: "Spelling and grammar correctness of the on-page copy.",
+      summary,
       findings,
     };
   }
 
-  let matches = await callLanguageTool(text);
+  // Only force a specific language when we're reasonably confident; otherwise
+  // let LanguageTool auto-detect (it handles this better than guessing).
+  const languageToolCode =
+    language.source === "default" ? "auto" : LANGUAGE_TOOL_CODES[language.code] ?? "auto";
+  let matches = await callLanguageTool(text, languageToolCode);
   let usedFallback = false;
   if (matches === null) {
     matches = heuristicIssues(text);
@@ -184,7 +208,7 @@ export async function analyzeGrammar($: CheerioDoc): Promise<CategoryResult> {
     name: "Grammar",
     score,
     grade: gradeFromScore(score),
-    summary: "Spelling and grammar correctness of the on-page copy.",
+    summary,
     findings,
   };
 }

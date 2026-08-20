@@ -12,8 +12,20 @@ const VIDEO_EMBED_SELECTOR =
   'iframe[src*="youtube"], iframe[src*="youtu.be"], iframe[src*="vimeo"], iframe[src*="wistia"], iframe[src*="loom.com"]';
 const SOCIAL_PROOF_NUMBER_PATTERN =
   /\b\d[\d,.]*\+?\s*(customers|users|companies|teams|reviews|ratings|downloads|installs|clients|stars|countries|partecipanti|iscritti|studenti|clienti|valutazione|recensioni|stelle|paesi|edizion\w*|follower|participantes|calificaci(ó|o)n|estrellas|pa(í|i)ses|participants|avis|(é|e)toiles|pays|teilnehmer|bewertung|sterne|l(ä|a)nder|avalia(ç|c)(ã|a)o|estrelas)\b/i;
-const RISK_REVERSAL_PATTERN = /\b(money[-\s]?back|guarantee|free trial|cancel anytime|no credit card|risk[-\s]?free|refund)\b/i;
-const URGENCY_PATTERN = /\b(limited time|today only|ends soon|spots left|only \d+ left|hurry|last chance|offer expires)\b/i;
+// Only phrases that are inherently positive on their own (a guarantee/promise),
+// not bare words like "refund" — "il biglietto NON è rimborsabile" (the ticket
+// is NOT refundable) contains "refund" but means the opposite of risk reversal,
+// so a bare keyword match would misread a no-refund policy as a guarantee.
+const RISK_REVERSAL_PATTERN =
+  /\b(money[-\s]?back|guarantee|free trial|cancel anytime|no credit card|risk[-\s]?free|full refund|100% refund|soddisfatti o rimborsati|garanzia|prova gratuita|disdici quando vuoi|nessuna carta di credito|senza rischio|senza rischi|rimborso garantito|rimborso completo)\b/i;
+// "Transferable/cedibile" is a distinct, milder risk-mitigator some businesses
+// offer instead of refunds (e.g. non-refundable event tickets that can still
+// be passed to someone else) — tracked separately so it's never conflated
+// with an actual money-back guarantee.
+const TRANSFERABLE_PATTERN =
+  /\b(transferable|transfer your (ticket|booking|order|spot)|give your (ticket|spot) (to|away)|cedibile|pu[òo] essere cedut[oa]|trasferibile|cambio( di)? nominativo)\b/i;
+const URGENCY_PATTERN =
+  /\b(limited time|today only|ends soon|spots left|only \d+ left|hurry|last chance|offer expires|early bird|price increases|prezzo aumenta|scade tra|scade il|scadenza|posti limitati|ultimi posti|affrettati|ultima possibilit(à|a)|offerta a tempo|solo per oggi)\b/i;
 
 export function analyzeConversion(
   $: CheerioDoc,
@@ -65,6 +77,18 @@ export function analyzeConversion(
       : "No guarantee, free trial, or 'cancel anytime' style statement found. Reducing perceived risk usually lifts conversion.",
     weight: 2,
   });
+
+  const hasTransferability = !hasRiskReversal && TRANSFERABLE_PATTERN.test(bodyText);
+  if (hasTransferability) {
+    findings.push({
+      id: "transferability",
+      label: "Transferable / flexible booking",
+      status: "pass",
+      detail:
+        "No money-back guarantee, but found transferable-ticket/booking language — a milder form of risk mitigation for visitors worried about committing.",
+      weight: 1,
+    });
+  }
 
   const hasUrgency = URGENCY_PATTERN.test(bodyText);
   findings.push({
