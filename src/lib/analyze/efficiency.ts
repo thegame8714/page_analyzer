@@ -1,5 +1,6 @@
 import { CheerioDoc, getMainContentText, getVisibleText } from "./dom";
 import { splitWords } from "./textUtils";
+import { CTA_PATTERN, countLeadCaptureFields } from "./cta";
 import { CategoryResult, Finding, gradeFromScore, scoreFromFindings } from "./types";
 
 const STOPWORDS = new Set(
@@ -7,8 +8,6 @@ const STOPWORDS = new Set(
     " "
   )
 );
-
-const CTA_PATTERN = /\b(buy|get|start|sign up|signup|try|book|schedule|contact|download|subscribe|order|shop|join|request|learn more|claim|register|demo|call|apply)\b/i;
 
 export function analyzeEfficiency($: CheerioDoc, htmlSizeBytes: number): CategoryResult {
   const findings: Finding[] = [];
@@ -113,14 +112,16 @@ export function analyzeEfficiency($: CheerioDoc, htmlSizeBytes: number): Categor
 
   const forms = $("form");
   let maxFormFields = 0;
-  forms.each((_, el) => {
-    const fields = $(el).find("input, select, textarea").filter((_, f) => {
-      const type = ($(f).attr("type") ?? "").toLowerCase();
-      return !["hidden", "submit", "button"].includes(type);
-    }).length;
-    if (fields > maxFormFields) maxFormFields = fields;
-  });
   if (forms.length > 0) {
+    forms.each((_, el) => {
+      const fields = countLeadCaptureFields($, $(el));
+      if (fields > maxFormFields) maxFormFields = fields;
+    });
+  } else {
+    // Some page builders render lead-capture inputs without a <form> wrapper.
+    maxFormFields = countLeadCaptureFields($, $.root());
+  }
+  if (forms.length > 0 || maxFormFields > 0) {
     findings.push({
       id: "form-length",
       label: "Form length",

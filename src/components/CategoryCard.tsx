@@ -45,9 +45,18 @@ export function CategoryCard({ category }: { category: CategoryResult }) {
                 >
                   {style.icon}
                 </span>
-                <div>
+                <div className="min-w-0">
                   <p className="font-medium text-slate-200">{f.label}</p>
                   <p className="text-slate-400">{f.detail}</p>
+                  {f.items && f.items.length > 0 && (
+                    <ul className="mt-2 space-y-1 rounded-lg bg-slate-950/60 p-3 text-xs text-slate-400">
+                      {f.items.map((item, i) => (
+                        <li key={i} className="break-words">
+                          {item}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                 </div>
               </li>
             );

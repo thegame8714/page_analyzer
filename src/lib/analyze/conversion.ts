@@ -1,11 +1,19 @@
-import { CheerioDoc, getJsonLdBlocks, jsonLdTypes } from "./dom";
+import { CheerioDoc, getJsonLdBlocks, getVisibleText, jsonLdTypes } from "./dom";
+import { CTA_PATTERN, countLeadCaptureFields } from "./cta";
 import { CategoryResult, Finding, gradeFromScore, scoreFromFindings } from "./types";
 
-const TESTIMONIAL_PATTERN = /\b(testimonial|review|what our customers|customer stories|case stud(y|ies)|success stor(y|ies))\b/i;
-const SOCIAL_PROOF_NUMBER_PATTERN = /\b\d[\d,.]*\+?\s*(customers|users|companies|teams|reviews|ratings|downloads|installs|clients|stars|countries)\b/i;
+// English-only keyword matching false-negatives on any non-English page (e.g. an
+// Italian page saying "Testimonianza" / "Storie di successo" was reported as having
+// "no testimonials"). Covers the languages most likely to show up; still not
+// exhaustive, so it's paired with a video-embed count as a language-independent signal.
+const TESTIMONIAL_PATTERN =
+  /\b(testimonial|review|what our customers|customer stories|case stud(y|ies)|success stor(y|ies)|testimonianz\w*|recension\w*|storie? di successo|caso studio|casi studio|dicono di noi|témoignages?|avis clients?|études? de cas|ce que disent|testimonios?|reseñas?|casos de éxito|lo que dicen|kundenstimmen|erfahrungsberichte|erfolgsgeschichten|bewertungen|depoimentos?|avalia(ç|c)(ã|a)o(es)?|casos de sucesso)\b/i;
+const VIDEO_EMBED_SELECTOR =
+  'iframe[src*="youtube"], iframe[src*="youtu.be"], iframe[src*="vimeo"], iframe[src*="wistia"], iframe[src*="loom.com"]';
+const SOCIAL_PROOF_NUMBER_PATTERN =
+  /\b\d[\d,.]*\+?\s*(customers|users|companies|teams|reviews|ratings|downloads|installs|clients|stars|countries|partecipanti|iscritti|studenti|clienti|valutazione|recensioni|stelle|paesi|edizion\w*|follower|participantes|calificaci(ó|o)n|estrellas|pa(í|i)ses|participants|avis|(é|e)toiles|pays|teilnehmer|bewertung|sterne|l(ä|a)nder|avalia(ç|c)(ã|a)o|estrelas)\b/i;
 const RISK_REVERSAL_PATTERN = /\b(money[-\s]?back|guarantee|free trial|cancel anytime|no credit card|risk[-\s]?free|refund)\b/i;
 const URGENCY_PATTERN = /\b(limited time|today only|ends soon|spots left|only \d+ left|hurry|last chance|offer expires)\b/i;
-const CTA_PATTERN = /\b(buy|get started|start|sign up|signup|try|book|schedule|contact|download|subscribe|order|shop|join|request|claim|register|demo|call|apply)\b/i;
 
 export function analyzeConversion(
   $: CheerioDoc,
@@ -13,20 +21,26 @@ export function analyzeConversion(
   fetchMs: number
 ): CategoryResult {
   const findings: Finding[] = [];
-  const bodyText = $("body").text();
+  const bodyText = getVisibleText($);
 
   const jsonLd = getJsonLdBlocks($);
   const types = jsonLdTypes(jsonLd).map((t) => t.toLowerCase());
   const hasRatingSchema = types.some((t) => t.includes("aggregaterating") || t.includes("review"));
   const hasTestimonialText = TESTIMONIAL_PATTERN.test(bodyText);
+  const videoEmbedCount = $(VIDEO_EMBED_SELECTOR).length;
+  const hasVideoTestimonials = videoEmbedCount >= 2;
+  const hasSocialProof = hasRatingSchema || hasTestimonialText || hasVideoTestimonials;
   findings.push({
     id: "social-proof",
     label: "Testimonials / reviews",
-    status: hasRatingSchema || hasTestimonialText ? "pass" : "fail",
-    detail:
-      hasRatingSchema || hasTestimonialText
-        ? "Found testimonial/review content or rating schema — strong trust signal for conversion."
-        : "No testimonials, reviews, or case studies detected. Social proof is one of the highest-leverage trust builders on a landing page.",
+    status: hasSocialProof ? "pass" : "fail",
+    detail: hasRatingSchema
+      ? "Found rating schema — a strong trust signal for conversion."
+      : hasTestimonialText
+      ? "Found testimonial/review content — a strong trust signal for conversion."
+      : hasVideoTestimonials
+      ? `Found ${videoEmbedCount} embedded videos, likely video testimonials — a strong trust signal (though we can't verify their content from static HTML).`
+      : "No testimonials, reviews, case studies, or embedded testimonial videos detected. Social proof is one of the highest-leverage trust builders on a landing page.",
     weight: 3,
   });
 
@@ -134,18 +148,19 @@ export function analyzeConversion(
   });
 
   const formCount = $("form").length;
+  const looseLeadFields = formCount === 0 ? countLeadCaptureFields($, $.root()) : 0;
   const primaryCtaCount = $("a, button").filter((_, el) => {
     const text = $(el).text().trim();
     return text.length > 0 && text.length < 40 && CTA_PATTERN.test(text);
   }).length;
+  const hasConversionPath = formCount > 0 || looseLeadFields > 0 || primaryCtaCount > 0;
   findings.push({
     id: "conversion-path",
     label: "Conversion path presence",
-    status: formCount > 0 || primaryCtaCount > 0 ? "pass" : "fail",
-    detail:
-      formCount > 0 || primaryCtaCount > 0
-        ? `Found ${formCount} form(s) and ${primaryCtaCount} CTA element(s) — visitors have a clear way to convert.`
-        : "No form or CTA element found — there's no obvious way for a visitor to convert on this page.",
+    status: hasConversionPath ? "pass" : "fail",
+    detail: hasConversionPath
+      ? `Found ${formCount > 0 ? formCount + " form(s)" : looseLeadFields + " input field(s)"} and ${primaryCtaCount} CTA element(s) — visitors have a clear way to convert.`
+      : "No form or CTA element found — there's no obvious way for a visitor to convert on this page.",
     weight: 3,
   });
 

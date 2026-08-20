@@ -6,6 +6,10 @@ export interface Finding {
   status: FindingStatus;
   detail: string;
   weight: number;
+  /** Optional itemized breakdown (e.g. each individual spelling error), shown
+   * in the expanded category card. The top-recommendations list only ever
+   * uses `detail`, so this doesn't affect that summary. */
+  items?: string[];
 }
 
 export interface CategoryResult {

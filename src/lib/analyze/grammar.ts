@@ -8,9 +8,34 @@ interface LanguageToolMatch {
   offset: number;
   length: number;
   rule?: { issueType?: string; category?: { id?: string; name?: string } };
+  context?: { text: string; offset: number; length: number };
+  replacements?: { value: string }[];
 }
 
 const MAX_CHARS = 9000;
+const MAX_ITEMS = 25;
+
+function describeMatch(m: LanguageToolMatch): string {
+  const flagged =
+    m.context && m.context.length > 0
+      ? m.context.text.slice(m.context.offset, m.context.offset + m.context.length).trim()
+      : undefined;
+  const suggestions = (m.replacements ?? [])
+    .slice(0, 3)
+    .map((r) => r.value)
+    .filter(Boolean);
+  const message = m.shortMessage || m.message;
+  const suggestionText = suggestions.length > 0 ? ` (suggested: "${suggestions.join('", "')}")` : "";
+  return flagged ? `"${flagged}" — ${message}${suggestionText}` : `${message}${suggestionText}`;
+}
+
+function itemize(matches: LanguageToolMatch[]): string[] {
+  const items = matches.slice(0, MAX_ITEMS).map(describeMatch);
+  if (matches.length > MAX_ITEMS) {
+    items.push(`…and ${matches.length - MAX_ITEMS} more.`);
+  }
+  return items;
+}
 
 async function callLanguageTool(text: string): Promise<LanguageToolMatch[] | null> {
   try {
@@ -115,6 +140,7 @@ export async function analyzeGrammar($: CheerioDoc): Promise<CategoryResult> {
             spelling[0] ? `, e.g. "${spelling[0].message}"` : ""
           }.`,
     weight: 3,
+    items: spelling.length > 0 ? itemize(spelling) : undefined,
   });
 
   findings.push({
@@ -128,6 +154,7 @@ export async function analyzeGrammar($: CheerioDoc): Promise<CategoryResult> {
             grammarIssues[0] ? `, e.g. "${grammarIssues[0].message}"` : ""
           }.`,
     weight: 3,
+    items: grammarIssues.length > 0 ? itemize(grammarIssues) : undefined,
   });
 
   findings.push({
@@ -147,6 +174,7 @@ export async function analyzeGrammar($: CheerioDoc): Promise<CategoryResult> {
       status: other.length <= 2 ? "warn" : "fail",
       detail: `${other.length} other issue(s), e.g. "${other[0].message}".`,
       weight: 1,
+      items: itemize(other),
     });
   }
 
