@@ -7,6 +7,9 @@ import { analyzeEfficiency } from "./efficiency";
 import { analyzeGrammar } from "./grammar";
 import { analyzeConversion } from "./conversion";
 import { AnalysisReport, CategoryResult, gradeFromScore } from "./types";
+import { AnalysisError, normalizeUrl } from "./normalizeUrl";
+
+export { AnalysisError, normalizeUrl } from "./normalizeUrl";
 
 const CATEGORY_WEIGHTS: Record<string, number> = {
   conversion: 1.3,
@@ -16,28 +19,6 @@ const CATEGORY_WEIGHTS: Record<string, number> = {
   efficiency: 1,
   grammar: 0.8,
 };
-
-export class AnalysisError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "AnalysisError";
-  }
-}
-
-export function normalizeUrl(input: string): string {
-  const trimmed = input.trim();
-  if (!trimmed) throw new AnalysisError("Please enter a URL.");
-  const withProtocol = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
-  try {
-    const u = new URL(withProtocol);
-    if (!u.hostname.includes(".")) {
-      throw new AnalysisError("That doesn't look like a valid URL.");
-    }
-    return u.toString();
-  } catch {
-    throw new AnalysisError("That doesn't look like a valid URL.");
-  }
-}
 
 function buildTopRecommendations(categories: CategoryResult[]): string[] {
   const failFindings = categories.flatMap((c) =>
