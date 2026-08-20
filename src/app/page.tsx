@@ -16,6 +16,12 @@ export default function Home() {
     e.preventDefault();
     if (loading) return;
 
+    // Every check starts from a clean slate — a prior report (or error)
+    // must never linger once a new analysis is requested, even if this
+    // attempt fails validation before a request is even sent.
+    setReport(null);
+    setError(null);
+
     let normalized: string;
     try {
       normalized = normalizeUrl(url);
@@ -25,8 +31,6 @@ export default function Home() {
     }
 
     setLoading(true);
-    setError(null);
-    setReport(null);
     try {
       const res = await fetch("/api/analyze", {
         method: "POST",
@@ -91,6 +95,9 @@ export default function Home() {
         ) : (
           <>
             <div className="max-w-xl mx-auto">
+              <h1 className="mb-6 text-xl font-bold tracking-tight text-center">
+                Landing Page Analyzer
+              </h1>
               {errorBox}
               <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-3">
                 <input
@@ -148,7 +155,7 @@ export default function Home() {
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                   {report.categories.map((c) => (
-                    <CategoryCard key={c.key} category={c} />
+                    <CategoryCard key={`${report.fetchedAt}-${c.key}`} category={c} />
                   ))}
                 </div>
               </div>
