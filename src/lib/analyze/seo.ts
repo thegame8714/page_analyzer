@@ -1,5 +1,7 @@
-import { CheerioDoc, getHeadings, getJsonLdBlocks } from "./dom";
-import { CategoryResult, Finding, gradeFromScore, scoreFromFindings } from "./types";
+import { CheerioDoc, absoluteUrl, getHeadings, getJsonLdBlocks } from "./dom";
+import { CategoryResult, Finding, FindingItem, gradeFromScore, scoreFromFindings } from "./types";
+
+const MAX_ITEMS = 25;
 
 export function analyzeSeo($: CheerioDoc, finalUrl: string): CategoryResult {
   const findings: Finding[] = [];
@@ -130,10 +132,28 @@ export function analyzeSeo($: CheerioDoc, finalUrl: string): CategoryResult {
   const images = $("img");
   const totalImages = images.length;
   let missingAlt = 0;
+  const missingAltItems: FindingItem[] = [];
   images.each((_, el) => {
     const alt = $(el).attr("alt");
-    if (!alt || !alt.trim()) missingAlt += 1;
+    if (alt && alt.trim()) return;
+    missingAlt += 1;
+    const src = $(el).attr("src") || $(el).attr("data-src");
+    const resolved = src ? absoluteUrl(src, finalUrl) : null;
+    if (missingAltItems.length >= MAX_ITEMS) return;
+    let label = resolved ?? "Image with no src attribute";
+    if (resolved) {
+      try {
+        const filename = new URL(resolved).pathname.split("/").pop();
+        if (filename) label = filename;
+      } catch {
+        // keep full resolved URL as the label
+      }
+    }
+    missingAltItems.push({ text: label, href: resolved ?? undefined });
   });
+  if (missingAlt > MAX_ITEMS) {
+    missingAltItems.push({ text: `…and ${missingAlt - MAX_ITEMS} more.` });
+  }
   if (totalImages === 0) {
     findings.push({
       id: "image-alt",
@@ -152,6 +172,7 @@ export function analyzeSeo($: CheerioDoc, finalUrl: string): CategoryResult {
         coverage * 100
       )}%).`,
       weight: 2,
+      items: missingAltItems.length > 0 ? missingAltItems : undefined,
     });
   }
 

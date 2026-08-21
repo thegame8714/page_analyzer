@@ -1,15 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { CategoryResult, FindingStatus } from "@/lib/analyze/types";
+import { CategoryResult } from "@/lib/analyze/types";
 import { ScoreGauge } from "./ScoreGauge";
-
-const STATUS_STYLES: Record<FindingStatus, { icon: string; text: string }> = {
-  pass: { icon: "✓", text: "text-emerald-400" },
-  warn: { icon: "!", text: "text-amber-400" },
-  fail: { icon: "✕", text: "text-rose-400" },
-  info: { icon: "i", text: "text-sky-400" },
-};
+import { STATUS_STYLES } from "./statusStyles";
 
 export function CategoryCard({ category }: { category: CategoryResult }) {
   const [open, setOpen] = useState(false);
@@ -60,7 +54,7 @@ export function CategoryCard({ category }: { category: CategoryResult }) {
                               rel="noopener noreferrer"
                               className="ml-1.5 whitespace-nowrap text-emerald-400 hover:text-emerald-300 hover:underline"
                             >
-                              View on page ↗
+                              Open ↗
                             </a>
                           )}
                         </li>

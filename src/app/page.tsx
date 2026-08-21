@@ -5,6 +5,7 @@ import { AnalysisReport } from "@/lib/analyze/types";
 import { AnalysisError, normalizeUrl } from "@/lib/analyze/normalizeUrl";
 import { ScoreGauge } from "@/components/ScoreGauge";
 import { CategoryCard } from "@/components/CategoryCard";
+import { Legend } from "@/components/Legend";
 
 export default function Home() {
   const [url, setUrl] = useState("");
@@ -152,6 +153,8 @@ export default function Home() {
                     </ol>
                   </div>
                 )}
+
+                <Legend />
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                   {report.categories.map((c) => (

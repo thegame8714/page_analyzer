@@ -8,10 +8,28 @@ export function loadHtml(html: string): CheerioDoc {
 
 const NOISE_SELECTORS = "script, style, noscript, template, svg";
 
+// Inline elements render with no implied whitespace of their own — browsers
+// (and copy/paste) butt their text directly against their neighbors. Pages
+// commonly split a single word across two of these for partial styling (e.g.
+// "<span>a</span><span>nd</span>" to color-highlight part of "and"), so
+// padding every element boundary equally would fabricate a space that isn't
+// really there and break the word apart. Only block-level boundaries get a
+// synthetic space (matching how block elements act as implicit line breaks).
+const INLINE_TAGS = new Set([
+  "a", "span", "strong", "em", "b", "i", "u", "s", "sup", "sub", "mark",
+  "small", "abbr", "cite", "code", "kbd", "q", "var", "time", "label",
+  "font", "ins", "del", "bdi", "bdo", "wbr", "tt", "big", "samp", "output",
+]);
+
 /**
  * cheerio's .text() concatenates text nodes with no separator, so adjacent
- * inline elements (e.g. two <span>s) collapse into one run-on word. Walk the
- * tree and pad every element boundary with a space to keep words distinct.
+ * block-level elements (e.g. two sibling <div>s) collapse into one run-on
+ * word. Walk the tree and pad block-level boundaries with a space; leave
+ * inline elements unpadded by default to match real rendered/copied text —
+ * except when the preceding text already ends in punctuation, which means
+ * this is a genuine break between separate units (e.g. a title and a
+ * description each in their own <span>, glued together with no source
+ * whitespace) rather than one word split across elements for styling.
  */
 function textWithSpacing($: CheerioDoc, node: ReturnType<CheerioDoc>): string {
   let text = "";
@@ -19,7 +37,18 @@ function textWithSpacing($: CheerioDoc, node: ReturnType<CheerioDoc>): string {
     if (child.type === "text") {
       text += (child as unknown as { data: string }).data;
     } else if (child.type === "tag") {
-      text += " " + textWithSpacing($, $(child)) + " ";
+      const tag = child.tagName?.toLowerCase();
+      if (tag === "br") {
+        text += " ";
+        return;
+      }
+      const inner = textWithSpacing($, $(child));
+      if (tag && INLINE_TAGS.has(tag)) {
+        const endsWithPunctuation = /[.!?:;,]$/.test(text);
+        text += endsWithPunctuation ? ` ${inner}` : inner;
+      } else {
+        text += ` ${inner} `;
+      }
     }
   });
   return text;
