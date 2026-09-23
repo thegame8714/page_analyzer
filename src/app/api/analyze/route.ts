@@ -4,7 +4,7 @@ import { AnalysisError, analyzeLandingPage } from "@/lib/analyze";
 export const maxDuration = 60;
 
 export async function POST(req: NextRequest) {
-  let body: { url?: string };
+  let body: { url?: string; mode?: string };
   try {
     body = await req.json();
   } catch {
@@ -17,7 +17,8 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const report = await analyzeLandingPage(url);
+    const mode = body.mode === "call" || body.mode === "checkout" ? body.mode : "auto";
+    const report = await analyzeLandingPage(url, mode);
     return NextResponse.json(report);
   } catch (err) {
     if (err instanceof AnalysisError) {

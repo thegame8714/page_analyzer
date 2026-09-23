@@ -10,7 +10,7 @@ export async function fetchPage(url: string): Promise<PageData> {
       signal: controller.signal,
       headers: {
         "User-Agent":
-          "Mozilla/5.0 (compatible; LandingPageAnalyzer/1.0; +https://example.com/bot)",
+          "Mozilla/5.0 (compatible; CoachingPageAnalyzer/1.0; +https://example.com/bot)",
         Accept:
           "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
       },

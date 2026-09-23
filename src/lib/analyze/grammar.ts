@@ -20,12 +20,40 @@ interface LanguageToolMatch {
   shortMessage?: string;
   offset: number;
   length: number;
-  rule?: { issueType?: string; category?: { id?: string; name?: string } };
+  rule?: { id?: string; issueType?: string; category?: { id?: string; name?: string } };
   context?: { text: string; offset: number; length: number };
   replacements?: { value: string }[];
 }
 
 const MAX_CHARS = 9000;
+
+// Non-English coaching copy is full of English business loanwords. The
+// public LanguageTool API ignores `altLanguages` for most languages, so they
+// get whitelisted here instead of being reported as misspellings.
+const ENGLISH_LOANWORDS = new Set(
+  ("coach coaching coachee mentor mentoring mindset business call calls live community team webinar workshop online offline " +
+    "feedback performance leader leadership network networking focus goal goals target brand branding marketing funnel " +
+    "sales lead leads upsell mastermind masterclass bootcamp training trainer tutor tutorial skill skills soft hard " +
+    "self care selfcare wellness wellbeing fitness burnout stress planner planning journaling journal checklist template " +
+    "templates workbook ebook e-book podcast video newsletter email mail blog post social link bonus free premium " +
+    "startup founder ceo manager management personal life executive career job smart working freelance freelancer " +
+    "digital content creator creators storytelling copy copywriting landing page sales-page gate fast food step steps " +
+    "roadmap framework tool tools kit toolkit hub club academy school program challenge follow-up check-up break " +
+    "the of and to meaning purpose flow deep work growth hack hacks happy happiness wow ok okay").split(" ")
+);
+
+// Rules that misfire on text stitched together from separate DOM blocks:
+// a testimonial's opening quote and closing quote often live in different
+// elements, and "…" directly after a word is standard typography.
+const IGNORED_RULES = new Set([
+  "UNPAIRED_BRACKETS",
+  "EN_UNPAIRED_QUOTES",
+  "EN_UNPAIRED_BRACKETS",
+  "IT_UNPAIRED_BRACKETS",
+  "ELLIPSIS",
+  "PUNCTUATION_PARAGRAPH_END",
+  "WHITESPACE_PUNCTUATION",
+]);
 const MAX_ITEMS = 25;
 
 function getFlaggedText(m: LanguageToolMatch): string | undefined {
@@ -46,6 +74,24 @@ function isLikelyAcronym(word: string): boolean {
   const upper = (core.match(/[A-Z]/g) ?? []).length;
   const letters = (core.match(/[A-Za-z]/g) ?? []).length;
   return upper >= 2 && upper / letters >= 0.5;
+}
+
+// Coaching pages repeat the coach's name, program name and brand coinages
+// ("Forleo", "MarieTV", "Figureoutable") — none are in a dictionary. Treat a
+// capitalized or camel-cased token as a proper noun when it recurs on the
+// page or appears in the title/domain, instead of reporting it as a typo.
+function isLikelyProperNoun(m: LanguageToolMatch, word: string, text: string, brandText: string): boolean {
+  const w = word.trim();
+  if (!/^\p{Lu}/u.test(w)) return false;
+  // Capitalized mid-sentence (not after . ! ? or at the start) → a name.
+  if (m.context) {
+    const before = m.context.text.slice(0, m.context.offset).trimEnd();
+    if (before.length > 0 && !/[.!?:"“”»…]$/.test(before)) return true;
+  }
+  if (/\p{Ll}\p{Lu}/u.test(w)) return true;
+  if (brandText.toLowerCase().includes(w.toLowerCase())) return true;
+  const escaped = w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return (text.match(new RegExp(`(?<![\\p{L}])${escaped}(?![\\p{L}])`, "gu")) ?? []).length >= 2;
 }
 
 // A "Text Fragment" (#:~:text=...) makes the browser scroll to and highlight
@@ -183,11 +229,24 @@ export async function analyzeGrammar($: CheerioDoc, pageUrl: string): Promise<Ca
     (m) => !/British English|American English/i.test(m.message)
   );
 
-  // Acronyms/initialisms (EMs, CXOs, KPIs, ROI, SaaS...) aren't spelling or
-  // grammar mistakes just because they're absent from a dictionary.
+  // Acronyms/initialisms (EMs, CXOs, KPIs, ROI, SaaS...) and recurring
+  // proper nouns (coach/program/brand names) aren't spelling mistakes just
+  // because they're absent from a dictionary.
+  const brandText = `${$("title").text()} ${$('meta[property="og:site_name"]').attr("content") ?? ""} ${pageUrl}`;
   matches = matches.filter((m) => {
+    if (m.rule?.id && IGNORED_RULES.has(m.rule.id)) return false;
     const flagged = getFlaggedText(m);
-    return !flagged || !isLikelyAcronym(flagged);
+    if (!flagged) return true;
+    if (/^[.…]+$/.test(flagged)) return false;
+    if (isLikelyAcronym(flagged)) return false;
+    if (
+      m.rule?.issueType === "misspelling" &&
+      language.code !== "en" &&
+      flagged.split(/[\s-]+/).every((part) => ENGLISH_LOANWORDS.has(part.toLowerCase()))
+    )
+      return false;
+    if (m.rule?.issueType === "misspelling" && isLikelyProperNoun(m, flagged, text, brandText)) return false;
+    return true;
   });
 
   const spelling = matches.filter((m) => m.rule?.issueType === "misspelling");

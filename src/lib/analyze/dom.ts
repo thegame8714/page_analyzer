@@ -83,7 +83,9 @@ export function getProseText($: CheerioDoc): string {
   clone.find(PROSE_SELECTOR).each((_, el) => {
     if ($(el).find(PROSE_SELECTOR).length > 0) return;
     const t = textWithSpacing($, $(el)).replace(/\s+/g, " ").trim();
-    if (t.length > 0) blocks.push(/[.!?:;,]$/.test(t) ? t : `${t}.`);
+    // Closing quotes/ellipses already end a sentence — appending "." after
+    // them fabricates errors like `week.”.` (testimonials end this way a lot).
+    if (t.length > 0) blocks.push(/[.!?:;,…"”’»)]$/.test(t) ? t : `${t}.`);
   });
   return blocks.join(" ");
 }

@@ -1,14 +1,35 @@
 "use client";
 
 import { FormEvent, useState } from "react";
-import { AnalysisReport } from "@/lib/analyze/types";
+import { AnalysisReport, FunnelMode } from "@/lib/analyze/types";
 import { AnalysisError, normalizeUrl } from "@/lib/analyze/normalizeUrl";
 import { ScoreGauge } from "@/components/ScoreGauge";
 import { CategoryCard } from "@/components/CategoryCard";
 import { Legend } from "@/components/Legend";
+import { Blueprint } from "@/components/Blueprint";
+import { FunnelFlow } from "@/components/FunnelFlow";
+
+const BENCHMARKS = [
+  "Hormozi · $100M Offers",
+  "Brunson · Expert Secrets",
+  "StoryBrand SB7",
+  "Cialdini · Influence",
+  "FTC Endorsement Guides",
+  "EU Omnibus / GDPR",
+  "Google E-E-A-T & Core Web Vitals",
+  "GEO (AI search)",
+  "Free-call funnel leaders",
+];
+
+const MODES: { value: FunnelMode; label: string }[] = [
+  { value: "auto", label: "Auto-detect" },
+  { value: "call", label: "Free call / application" },
+  { value: "checkout", label: "Direct purchase" },
+];
 
 export default function Home() {
   const [url, setUrl] = useState("");
+  const [mode, setMode] = useState<FunnelMode>("auto");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [report, setReport] = useState<AnalysisReport | null>(null);
@@ -36,7 +57,7 @@ export default function Home() {
       const res = await fetch("/api/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: normalized }),
+        body: JSON.stringify({ url: normalized, mode }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -64,66 +85,97 @@ export default function Home() {
     </div>
   );
 
+  const form = (autoFocus: boolean) => (
+    <form onSubmit={handleSubmit} className="space-y-3">
+      <div className="flex flex-col sm:flex-row gap-3">
+        <input
+          type="text"
+          autoFocus={autoFocus}
+          value={url}
+          onChange={(e) => handleUrlChange(e.target.value)}
+          placeholder="https://yourcoaching.com/program"
+          className="flex-1 rounded-xl border border-slate-700 bg-slate-900 px-4 py-3 text-sm text-slate-100 placeholder:text-slate-500 focus:border-emerald-500 focus:outline-none"
+        />
+        <button
+          type="submit"
+          disabled={loading}
+          className="rounded-xl bg-emerald-500 px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {loading ? "Analyzing…" : "Analyze"}
+        </button>
+      </div>
+      <fieldset className="flex flex-wrap items-center justify-center gap-2 text-xs">
+        <legend className="sr-only">Funnel type</legend>
+        <span className="text-slate-500">Funnel:</span>
+        {MODES.map((m) => (
+          <label
+            key={m.value}
+            className={`cursor-pointer rounded-full border px-3 py-1 transition ${
+              mode === m.value
+                ? "border-emerald-500 bg-emerald-500/15 text-emerald-300"
+                : "border-slate-700 text-slate-400 hover:border-slate-500"
+            }`}
+          >
+            <input
+              type="radio"
+              name="mode"
+              value={m.value}
+              checked={mode === m.value}
+              onChange={() => setMode(m.value)}
+              className="sr-only"
+            />
+            {m.label}
+          </label>
+        ))}
+      </fieldset>
+    </form>
+  );
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
       <div className="mx-auto max-w-4xl px-4 py-12 sm:py-16">
         {!hasResult ? (
           <div className="flex min-h-[70vh] flex-col items-center justify-center">
             <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-center">
-              Landing Page Analyzer
+              Coaching Sales Page Analyzer
             </h1>
+            <p className="mt-3 max-w-xl text-center text-sm text-slate-400">
+              Paste the sales page of an online coaching program, whether it sells the program
+              directly or books a free call. We follow the CTA to the next step and check the
+              offer, structure, proof, booking flow, SEO, GEO, clarity and grammar against the
+              standards the top coaching businesses follow.
+            </p>
+            <div className="mt-4 flex max-w-2xl flex-wrap justify-center gap-2">
+              {BENCHMARKS.map((b) => (
+                <span
+                  key={b}
+                  className="rounded-full border border-slate-800 px-3 py-1 text-xs text-slate-400"
+                >
+                  {b}
+                </span>
+              ))}
+            </div>
             <div className="mt-8 w-full max-w-xl">
               {errorBox}
-              <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-3">
-                <input
-                  type="text"
-                  autoFocus
-                  value={url}
-                  onChange={(e) => handleUrlChange(e.target.value)}
-                  placeholder="https://example.com/landing-page"
-                  className="flex-1 rounded-xl border border-slate-700 bg-slate-900 px-4 py-3 text-sm text-slate-100 placeholder:text-slate-500 focus:border-emerald-500 focus:outline-none"
-                />
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="rounded-xl bg-emerald-500 px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  Analyze
-                </button>
-              </form>
+              {form(true)}
             </div>
           </div>
         ) : (
           <>
             <div className="max-w-xl mx-auto">
               <h1 className="mb-6 text-xl font-bold tracking-tight text-center">
-                Landing Page Analyzer
+                Coaching Sales Page Analyzer
               </h1>
               {errorBox}
-              <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-3">
-                <input
-                  type="text"
-                  value={url}
-                  onChange={(e) => handleUrlChange(e.target.value)}
-                  placeholder="https://example.com/landing-page"
-                  className="flex-1 rounded-xl border border-slate-700 bg-slate-900 px-4 py-3 text-sm text-slate-100 placeholder:text-slate-500 focus:border-emerald-500 focus:outline-none"
-                />
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="rounded-xl bg-emerald-500 px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {loading ? "Analyzing…" : "Analyze"}
-                </button>
-              </form>
+              {form(false)}
             </div>
 
             {loading && !report && (
               <div className="mt-12 flex flex-col items-center gap-3 text-slate-400">
                 <div className="h-8 w-8 animate-spin rounded-full border-2 border-slate-700 border-t-emerald-500" />
                 <p className="text-sm">
-                  Fetching the page and running SEO, GEO, clarity, grammar, and conversion
-                  checks…
+                  Fetching the page, following the CTA to the next step, and checking the
+                  offer, structure, proof, booking flow, SEO, GEO, clarity and grammar…
                 </p>
               </div>
             )}
@@ -133,7 +185,7 @@ export default function Home() {
                 <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6 flex flex-col sm:flex-row items-center gap-6">
                   <ScoreGauge score={report.overallScore} size={120} strokeWidth={10} />
                   <div className="text-center sm:text-left">
-                    <p className="text-sm text-slate-400">Overall conversion readiness score</p>
+                    <p className="text-sm text-slate-400">Overall coaching sales-page score</p>
                     <p className="text-2xl font-bold text-slate-100">
                       Grade {report.overallGrade} · {report.overallScore}/100
                     </p>
@@ -152,6 +204,15 @@ export default function Home() {
                       ))}
                     </ol>
                   </div>
+                )}
+
+                <FunnelFlow funnel={report.funnel} />
+
+                {report.blueprint.length > 0 && (
+                  <Blueprint
+                    sections={report.blueprint}
+                    title={report.funnel.type === "call" ? "Free-call page blueprint" : "Coaching sales-page blueprint"}
+                  />
                 )}
 
                 <Legend />

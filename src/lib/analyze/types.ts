@@ -13,6 +13,9 @@ export interface Finding {
   status: FindingStatus;
   detail: string;
   weight: number;
+  /** The industry standard / framework this check is benchmarked against
+   * (e.g. "Hormozi · Value Equation"), shown as a tag next to the finding. */
+  standard?: string;
   /** Optional itemized breakdown (e.g. each individual spelling error), shown
    * in the expanded category card. The top-recommendations list only ever
    * uses `detail`, so this doesn't affect that summary. */
@@ -37,6 +40,35 @@ export interface PageData {
   sizeBytes: number;
 }
 
+export interface BlueprintSection {
+  id: string;
+  label: string;
+  status: FindingStatus;
+}
+
+/** "call": the page sells a free call/application (price revealed on the
+ * call). "checkout": the page sells the program directly online. */
+export type FunnelType = "call" | "checkout";
+export type FunnelMode = FunnelType | "auto";
+
+export interface FunnelStep {
+  label: string;
+  url?: string;
+  /** page = a fetched HTML page; embedded = booking widget on the same page;
+   * scheduler / checkout / form = hosted third-party tool (not inspectable);
+   * unknown = couldn't be resolved. */
+  kind: "page" | "embedded" | "scheduler" | "checkout" | "form" | "unknown";
+  notes: string[];
+}
+
+export interface FunnelInfo {
+  type: FunnelType;
+  /** True when the type was auto-detected rather than chosen by the user. */
+  detected: boolean;
+  reason: string;
+  steps: FunnelStep[];
+}
+
 export interface AnalysisReport {
   url: string;
   finalUrl: string;
@@ -45,6 +77,10 @@ export interface AnalysisReport {
   overallGrade: string;
   categories: CategoryResult[];
   topRecommendations: string[];
+  /** The canonical coaching sales-page sections, in the order top coaching
+   * sales pages present them, with whether each was detected. */
+  blueprint: BlueprintSection[];
+  funnel: FunnelInfo;
 }
 
 export function scoreFromFindings(findings: Finding[]): number {

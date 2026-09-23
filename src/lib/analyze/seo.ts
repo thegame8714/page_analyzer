@@ -33,6 +33,24 @@ export function analyzeSeo($: CheerioDoc, finalUrl: string): CategoryResult {
     });
   }
 
+  // Search demand for coaching offers is keyword-led ("business coaching
+  // program", "percorso di coaching"); a title without any niche term can't
+  // rank for it no matter how good the page is.
+  const NICHE_TERMS =
+    /coach\w*|mentor\w*|program\w*|course|masterclass|academy|bootcamp|mastermind|training|percorso|corso|formazione|accademia|curso|formation|kurs|programa/i;
+  if (title) {
+    const niche = title.match(NICHE_TERMS);
+    findings.push({
+      id: "title-niche",
+      label: "Offer keyword in title",
+      status: niche ? "pass" : "warn",
+      detail: niche
+        ? `Title includes a niche keyword ("${niche[0]}") people search for.`
+        : "Title has no offer keyword (coaching, program, course, percorso…). Include the category + outcome people actually search, e.g. \"Business Coaching Program for New Coaches | Brand\".",
+      weight: 2,
+    });
+  }
+
   const metaDescription = $('meta[name="description"]').attr("content")?.trim() ?? "";
   if (!metaDescription) {
     findings.push({

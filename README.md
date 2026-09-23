@@ -1,36 +1,62 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Coaching Sales Page Analyzer
 
-## Getting Started
-
-First, run the development server:
+Paste the URL of an online coaching program's sales page and get a scored audit
+of everything that affects its ability to convert, benchmarked against the
+standards the top coaching sales pages follow.
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+npm run dev   # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Funnel types
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+The analyzer auto-detects (or you choose) which funnel the page runs, then
+follows the main CTA to the next step:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- **Direct purchase** (e.g. B-School): if the CTA opens a separate
+  enrollment page, that page's content is merged into the Offer / Structure /
+  Trust analysis, and the checkout hop is shown.
+- **Free call / application** (Tony Robbins Results Coaching, Clients on
+  Demand, Jay Shetty Certification, Consulting.com): adds a **Free-Call
+  Funnel** category covering the call invitation (named, free, length,
+  takeaway, who you'll speak to, no-pressure, scarcity, how it works, price
+  question, CTA copy). It also audits the booking step: clicks to book, form
+  and/or calendar, qualifying and budget questions, form friction, proof on
+  the booking page, consent. Price, stack and bonus checks are skipped because
+  those are presented on the call. See
+  `src/lib/analyze/coaching/referenceFunnels.ts` for the reference flows.
 
-## Learn More
+## What it checks
 
-To learn more about Next.js, take a look at the following resources:
+| Category | Weight | Benchmarked against |
+|---|---|---|
+| **Free-Call Funnel** (call funnels only) | 1.4 | Robbins · Ruffino · Shetty · Ovens, StoryBrand, Cialdini |
+| **Offer Strength**: time-to-result, delivery format, curriculum, value stack, bonuses, price/application, payment plan, guarantee | 1.4 | Hormozi *$100M Offers* (Value Equation), Brunson |
+| **Sales Page Structure**: outcome headline, avatar callout, "not for you", pain, vision, coach story, FAQ/objections, CTA repetition & copy, you-focus, urgency, lead magnet | 1.3 | Brunson *Expert Secrets*, StoryBrand SB7, PAS/AIDA |
+| **Trust & Proof**: testimonial volume, result-specific proof, video, faces/names, credentials, media, ratings, earnings disclaimer, hype, legal pages, business identity (P.IVA) | 1.3 | Cialdini, Google E-E-A-T, FTC Endorsement Guides & Fake Reviews Rule, EU consumer law |
+| **Conversion UX**: above-fold CTA, checkout/booking path, mobile, page weight, tracking pixels, chat/WhatsApp, tech stack | 1.0 | Core Web Vitals, CRO best practice |
+| Text Clarity · SEO · GEO (AI search) · Content Efficiency · Grammar (LanguageTool) | 0.7–0.9 | Flesch/Gulpease, Google Search Essentials, GEO |
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+The report also shows a **16-section blueprint** (the canonical coaching
+sales-page arc, in order) with which sections were detected.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Copy checks run in English and Italian, with partial Spanish, French, German
+and Portuguese support.
 
-## Deploy on Vercel
+## Layout
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- `src/lib/analyze/coaching/`: coaching-specific checks (`offer.ts`,
+  `framework.ts`, `trust.ts`), keyword patterns (`patterns.ts`), standards
+  labels (`standards.ts`) and shared page context (`context.ts`).
+- `src/lib/analyze/*.ts`: generic checks shared with the Landing Page
+  Analyzer (SEO, GEO, clarity, efficiency, grammar) plus `conversion.ts`
+  (Conversion UX).
+- `src/lib/analyze/index.ts`: orchestration, category weights, blueprint and
+  top recommendations.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Limitations
+
+Analysis runs on the server-rendered HTML. Content injected purely client-side,
+or tags loaded only after cookie consent, won't be seen. Checks are
+keyword/structure heuristics, not an LLM reading the page.

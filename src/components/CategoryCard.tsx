@@ -40,7 +40,14 @@ export function CategoryCard({ category }: { category: CategoryResult }) {
                   {style.icon}
                 </span>
                 <div className="min-w-0">
-                  <p className="font-medium text-slate-200">{f.label}</p>
+                  <p className="font-medium text-slate-200">
+                    {f.label}
+                    {f.standard && (
+                      <span className="ml-2 inline-block rounded-full border border-slate-700 px-2 py-0.5 align-middle text-[10px] font-normal text-slate-400">
+                        {f.standard}
+                      </span>
+                    )}
+                  </p>
                   <p className="text-slate-400">{f.detail}</p>
                   {f.items && f.items.length > 0 && (
                     <ul className="mt-2 space-y-1 rounded-lg bg-slate-950/60 p-3 text-xs text-slate-400">

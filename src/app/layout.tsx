@@ -13,9 +13,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Landing Page Analyzer",
+  title: "Coaching Sales Page Analyzer",
   description:
-    "Score any landing page on GEO, SEO, text clarity, content efficiency, grammar, and conversion readiness.",
+    "Score an online coaching program sales page against Hormozi, Brunson, StoryBrand, Cialdini and FTC standards, plus SEO, GEO, clarity and grammar.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

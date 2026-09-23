@@ -64,7 +64,7 @@ export async function analyzeGeo($: CheerioDoc, finalUrl: string): Promise<Categ
   });
 
   const richSchemaTypes = types.filter((t) =>
-    ["product", "organization", "article", "softwareapplication", "service", "localbusiness", "review", "aggregaterating"].some(
+    ["course", "educationaloccupationalprogram", "person", "service", "professionalservice", "product", "offer", "event", "organization", "localbusiness", "review", "aggregaterating"].some(
       (k) => t.includes(k)
     )
   );
@@ -75,7 +75,7 @@ export async function analyzeGeo($: CheerioDoc, finalUrl: string): Promise<Categ
     detail:
       richSchemaTypes.length > 0
         ? `Structured data declares: ${Array.from(new Set(richSchemaTypes)).join(", ")}. This helps AI systems understand who/what the page is about.`
-        : "No Organization/Product/Article/Service schema found. Without it, AI engines have to guess what entity this page represents.",
+        : "No Course / Service / Person / Product schema found. Coaching pages should declare the program (Course or Service with an Offer) and the coach (Person) so AI engines can recommend them by name.",
     weight: 2,
   });
 
@@ -84,8 +84,10 @@ export async function analyzeGeo($: CheerioDoc, finalUrl: string): Promise<Categ
     if (block && typeof block === "object") {
       const b = block as Record<string, unknown>;
       const t = String(b["@type"] ?? "").toLowerCase();
-      if (t.includes("organization") && Array.isArray(b["sameAs"])) {
-        orgSameAs = (b["sameAs"] as unknown[]).length;
+      // Coaching brands are usually a person, not a company — count the
+      // coach's Person sameAs links too.
+      if ((t.includes("organization") || t.includes("person")) && Array.isArray(b["sameAs"])) {
+        orgSameAs = Math.max(orgSameAs, (b["sameAs"] as unknown[]).length);
       }
     }
   }
@@ -95,8 +97,8 @@ export async function analyzeGeo($: CheerioDoc, finalUrl: string): Promise<Categ
     status: orgSameAs >= 2 ? "pass" : orgSameAs === 1 ? "warn" : "fail",
     detail:
       orgSameAs >= 2
-        ? `Organization schema links to ${orgSameAs} external profiles, helping AI systems disambiguate your brand.`
-        : "No (or too few) sameAs links in Organization schema tying this brand to verifiable external profiles (LinkedIn, Crunchbase, Wikipedia, etc.).",
+        ? `Person/Organization schema links to ${orgSameAs} external profiles, helping AI systems disambiguate the coach's brand.`
+        : "No (or too few) sameAs links in Person/Organization schema tying the coach to verifiable profiles (LinkedIn, Instagram, YouTube, podcast, ICF directory…).",
     weight: 1,
   });
 
