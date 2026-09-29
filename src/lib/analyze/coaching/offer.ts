@@ -1,4 +1,4 @@
-import { CategoryResult, Finding, FunnelType } from "../types";
+import { CategoryResult, Finding, FunnelType, tr } from "../types";
 import { CoachingContext, category, firstMatch, matchItems } from "./context";
 import {
   APPLICATION_FUNNEL,
@@ -38,16 +38,25 @@ export function analyzeOffer(ctx: CoachingContext, funnel: FunnelType): Category
 
   // --- Time delay ---
   const timeframe = firstMatch(bodyText, TIMEFRAME);
-  const timeframeInHero = TIMEFRAME.test(ctx.heroText);
+  const heroTimeframe = firstMatch(ctx.heroText, TIMEFRAME);
   findings.push({
     id: "timeframe",
-    label: "Time-to-result is explicit",
-    status: timeframeInHero ? "pass" : timeframe ? "warn" : "fail",
-    detail: timeframeInHero
-      ? `The hero states a concrete timeframe ("${firstMatch(ctx.heroText, TIMEFRAME)}"). Shrinking perceived time delay directly raises perceived value.`
+    label: tr("Time-to-result is explicit", "Tempo per il risultato esplicito"),
+    status: heroTimeframe ? "pass" : timeframe ? "warn" : "fail",
+    detail: heroTimeframe
+      ? tr(
+          `The hero states a concrete timeframe ("${heroTimeframe}"). Shrinking perceived time delay directly raises perceived value.`,
+          `L'apertura indica un tempo concreto ("${heroTimeframe}"). Ridurre l'attesa percepita aumenta direttamente il valore percepito.`
+        )
       : timeframe
-      ? `A timeframe appears on the page ("${timeframe}") but not in the headline area. Put the time-to-result next to the promise (e.g. "…in 90 days").`
-      : "No program length or time-to-result found (e.g. \"12-week program\", \"in 90 giorni\"). Buyers discount any outcome that has no timeline.",
+      ? tr(
+          `A timeframe appears on the page ("${timeframe}") but not in the headline area. Put the time-to-result next to the promise (e.g. "…in 90 days").`,
+          `Un tempo compare nella pagina ("${timeframe}") ma non nella zona del titolo. Metti il tempo per il risultato accanto alla promessa (es. "…in 90 giorni").`
+        )
+      : tr(
+          "No program length or time-to-result found (e.g. \"12-week program\", \"in 90 days\"). Buyers discount any outcome that has no timeline.",
+          "Nessuna durata del percorso né tempo per il risultato (es. \"percorso di 12 settimane\", \"in 90 giorni\"). Chi compra svaluta qualsiasi risultato senza una tempistica."
+        ),
     weight: 2,
     standard: STANDARDS.hormozi,
   });
@@ -56,14 +65,23 @@ export function analyzeOffer(ctx: CoachingContext, funnel: FunnelType): Category
   const deliverables = distinctMatches(bodyText, DELIVERABLES);
   findings.push({
     id: "deliverables",
-    label: "Delivery format & support spelled out",
+    label: tr("Delivery format & support spelled out", "Formato e supporto spiegati chiaramente"),
     status: deliverables.length >= 4 ? "pass" : deliverables.length >= 2 ? "warn" : "fail",
     detail:
       deliverables.length >= 4
-        ? `${deliverables.length} concrete delivery elements named (live calls, community, templates, 1:1…). Showing done-with-you support lowers perceived effort.`
+        ? tr(
+            `${deliverables.length} concrete delivery elements named (live calls, community, templates, 1:1…). Showing done-with-you support lowers perceived effort.`,
+            `${deliverables.length} elementi concreti di erogazione citati (call live, community, template, 1:1…). Mostrare un supporto "fatto insieme" riduce lo sforzo percepito.`
+          )
         : deliverables.length >= 2
-        ? `Only ${deliverables.length} delivery elements named. Spell out the full format: number/frequency of live calls, 1:1 access, community, templates, recordings, access length.`
-        : "The page barely says how the coaching is delivered. Buyers need to see the format (group calls, 1:1, community, materials) to picture the effort involved.",
+        ? tr(
+            `Only ${deliverables.length} delivery elements named. Spell out the full format: number/frequency of live calls, 1:1 access, community, templates, recordings, access length.`,
+            `Solo ${deliverables.length} elementi di erogazione citati. Descrivi il formato completo: numero/frequenza delle call live, accesso 1:1, community, template, registrazioni, durata dell'accesso.`
+          )
+        : tr(
+            "The page barely says how the coaching is delivered. Buyers need to see the format (group calls, 1:1, community, materials) to picture the effort involved.",
+            "La pagina dice a malapena come si svolge il coaching. Chi compra deve vedere il formato (call di gruppo, 1:1, community, materiali) per immaginare l'impegno richiesto."
+          ),
     weight: 3,
     standard: STANDARDS.hormozi,
     items: deliverables.length > 0 ? matchItems(finalUrl, deliverables) : undefined,
@@ -73,14 +91,23 @@ export function analyzeOffer(ctx: CoachingContext, funnel: FunnelType): Category
   const listItems = $("li").length;
   findings.push({
     id: "curriculum",
-    label: "Curriculum / roadmap is visible",
+    label: tr("Curriculum / roadmap is visible", "Programma / roadmap visibile"),
     status: curriculum.length >= 3 ? "pass" : curriculum.length >= 1 ? "warn" : "fail",
     detail:
       curriculum.length >= 3
-        ? `A program breakdown is present (${curriculum.slice(0, 4).join(", ")}…). A named, step-by-step path makes success feel more likely.`
+        ? tr(
+            `A program breakdown is present (${curriculum.slice(0, 4).join(", ")}…). A named, step-by-step path makes success feel more likely.`,
+            `È presente il dettaglio del programma (${curriculum.slice(0, 4).join(", ")}…). Un percorso con nomi e passaggi chiari fa sembrare il successo più probabile.`
+          )
         : curriculum.length >= 1
-        ? "Some program structure is mentioned but there's no clear module-by-module or week-by-week breakdown. Show the roadmap with a named outcome per step."
-        : `No curriculum, modules or roadmap found${listItems ? "" : " and no lists at all"}. Top coaching pages show exactly what happens in each module/phase.`,
+        ? tr(
+            "Some program structure is mentioned but there's no clear module-by-module or week-by-week breakdown. Show the roadmap with a named outcome per step.",
+            "Si accenna alla struttura del programma, ma manca un dettaglio chiaro modulo per modulo o settimana per settimana. Mostra la roadmap con un risultato per ogni tappa."
+          )
+        : tr(
+            `No curriculum, modules or roadmap found${listItems ? "" : " and no lists at all"}. Top coaching pages show exactly what happens in each module/phase.`,
+            `Nessun programma, modulo o roadmap${listItems ? "" : " e nessun elenco"}. Le migliori pagine di coaching mostrano esattamente cosa succede in ogni modulo/fase.`
+          ),
     weight: 3,
     standard: STANDARDS.brunson,
     items: curriculum.length > 0 ? matchItems(finalUrl, curriculum) : undefined,
@@ -89,10 +116,12 @@ export function analyzeOffer(ctx: CoachingContext, funnel: FunnelType): Category
   if (!sellsOnPage) {
     findings.push({
       id: "price-on-call",
-      label: "Price, stack & bonuses",
+      label: tr("Price, stack & bonuses", "Prezzo, stack e bonus"),
       status: "info",
-      detail:
+      detail: tr(
         "Not scored: in a free-call funnel the investment, offer stack and bonuses are presented on the call. The page's job is to sell the call (see Free-Call Funnel).",
+        "Non valutato: in un funnel a call gratuita investimento, stack dell'offerta e bonus si presentano durante la call. Il compito della pagina è vendere la call (vedi Funnel a call gratuita)."
+      ),
       weight: 0,
       standard: STANDARDS.callFunnel,
     });
@@ -103,14 +132,20 @@ export function analyzeOffer(ctx: CoachingContext, funnel: FunnelType): Category
       .map((_, el) => $(el).text().replace(/\s+/g, " ").trim())
       .get();
     const valueAnchor = firstMatch(bodyText, VALUE_ANCHOR);
-    const hasAnchor = strikePrices.length > 0 || !!valueAnchor;
+    const anchor = strikePrices.length > 0 ? strikePrices[0] : valueAnchor;
     findings.push({
       id: "value-stack",
-      label: "Offer stack with value anchoring",
-      status: hasAnchor ? "pass" : "warn",
-      detail: hasAnchor
-        ? `The offer is anchored against a higher value (${strikePrices.length > 0 ? `struck-through price "${strikePrices[0]}"` : `"${valueAnchor}"`}). Stacking each component with its value is the standard "Stack" close.`
-        : "No value stack found — the page doesn't recap everything included with a value next to each item and a total. The stack makes the price feel small by comparison.",
+      label: tr("Offer stack with value anchoring", "Stack dell'offerta con ancoraggio del valore"),
+      status: anchor ? "pass" : "warn",
+      detail: anchor
+        ? tr(
+            `The offer is anchored against a higher value (${strikePrices.length > 0 ? `struck-through price "${anchor}"` : `"${anchor}"`}). Stacking each component with its value is the standard "Stack" close.`,
+            `L'offerta è ancorata a un valore più alto (${strikePrices.length > 0 ? `prezzo barrato "${anchor}"` : `"${anchor}"`}). Elencare ogni componente con il suo valore è la classica chiusura "Stack".`
+          )
+        : tr(
+            "No value stack found — the page doesn't recap everything included with a value next to each item and a total. The stack makes the price feel small by comparison.",
+            "Nessuno stack del valore: la pagina non riepiloga tutto ciò che è incluso con il valore di ogni elemento e un totale. Lo stack fa sembrare il prezzo piccolo al confronto."
+          ),
       weight: 2,
       standard: STANDARDS.brunson,
     });
@@ -118,10 +153,12 @@ export function analyzeOffer(ctx: CoachingContext, funnel: FunnelType): Category
     if (strikePrices.length > 0 && EU_LANGUAGES.has(ctx.language.code)) {
       findings.push({
         id: "eu-price-reduction",
-        label: "EU price-reduction rules",
+        label: tr("EU price-reduction rules", "Regole UE sugli sconti"),
         status: "info",
-        detail:
+        detail: tr(
           "A struck-through price was found on a page aimed at an EU audience. Under the Omnibus Directive, an announced price reduction must show the lowest price applied in the previous 30 days. Make sure the \"was\" price is genuine.",
+          "C'è un prezzo barrato su una pagina rivolta a un pubblico UE. Con la Direttiva Omnibus, uno sconto annunciato deve indicare il prezzo più basso applicato nei 30 giorni precedenti. Verifica che il prezzo \"di partenza\" sia reale."
+        ),
         weight: 1,
         standard: STANDARDS.euConsumer,
       });
@@ -130,12 +167,18 @@ export function analyzeOffer(ctx: CoachingContext, funnel: FunnelType): Category
     const bonuses = distinctMatches(`${ctx.headingText} ${bodyText}`, BONUS);
     findings.push({
       id: "bonuses",
-      label: "Bonuses that remove specific obstacles",
+      label: tr("Bonuses that remove specific obstacles", "Bonus che rimuovono ostacoli specifici"),
       status: bonuses.length > 0 ? "pass" : "warn",
       detail:
         bonuses.length > 0
-          ? "Bonuses are included. The strongest bonuses each solve a specific objection (time, confidence, tech)."
-          : "No bonuses found. Hormozi and Brunson both use bonuses aimed at the buyer's next obstacle to raise value without discounting.",
+          ? tr(
+              "Bonuses are included. The strongest bonuses each solve a specific objection (time, confidence, tech).",
+              "Sono inclusi dei bonus. I bonus più forti risolvono ciascuno un'obiezione specifica (tempo, fiducia, tecnologia)."
+            )
+          : tr(
+              "No bonuses found. Hormozi and Brunson both use bonuses aimed at the buyer's next obstacle to raise value without discounting.",
+              "Nessun bonus. Hormozi e Brunson usano bonus mirati al prossimo ostacolo di chi compra, per aumentare il valore senza fare sconti."
+            ),
       weight: 1,
       standard: STANDARDS.hormozi,
     });
@@ -145,13 +188,22 @@ export function analyzeOffer(ctx: CoachingContext, funnel: FunnelType): Category
     const application = firstMatch(`${bodyText} ${ctx.ctaTexts.join(" ")}`, APPLICATION_FUNNEL);
     findings.push({
       id: "pricing",
-      label: "Price or application path is clear",
-      status: priceMatch ? "pass" : application ? "pass" : "warn",
+      label: tr("Price or application path is clear", "Prezzo o percorso di candidatura chiari"),
+      status: priceMatch || application ? "pass" : "warn",
       detail: priceMatch
-        ? `Price is shown on the page (${priceMatch[0].trim()}). Pricing openness filters in serious buyers and removes a click-away reason.`
+        ? tr(
+            `Price is shown on the page (${priceMatch[0].trim()}). Pricing openness filters in serious buyers and removes a click-away reason.`,
+            `Il prezzo è indicato nella pagina (${priceMatch[0].trim()}). La trasparenza sul prezzo attira chi è davvero interessato e toglie un motivo per andarsene.`
+          )
         : application
-        ? `No public price, but there's an application / call step ("${application}"). That's standard for high-ticket coaching; make sure the page still states the investment range or who qualifies.`
-        : "Neither a price nor an application/call step was found. Visitors can't tell what the investment is or how to get it.",
+        ? tr(
+            `No public price, but there's an application / call step ("${application}"). That's standard for high-ticket coaching; make sure the page still states the investment range or who qualifies.`,
+            `Nessun prezzo pubblico, ma c'è un passaggio di candidatura / call ("${application}"). È la norma nel coaching high-ticket; assicurati però che la pagina indichi la fascia d'investimento o chi è idoneo.`
+          )
+        : tr(
+            "Neither a price nor an application/call step was found. Visitors can't tell what the investment is or how to get it.",
+            "Nessun prezzo né passaggio di candidatura/call. I visitatori non capiscono qual è l'investimento né come accedere."
+          ),
       weight: 2,
       standard: STANDARDS.cro,
     });
@@ -160,11 +212,17 @@ export function analyzeOffer(ctx: CoachingContext, funnel: FunnelType): Category
       const plan = firstMatch(bodyText, PAYMENT_PLAN);
       findings.push({
         id: "payment-plan",
-        label: "Payment plan option",
+        label: tr("Payment plan option", "Pagamento rateale"),
         status: plan ? "pass" : "warn",
         detail: plan
-          ? `A payment plan is offered ("${plan}"). Splitting the payment usually lifts take-rate for programs over ~€/$500.`
-          : "No payment plan / installments found. Offering a split payment (e.g. 3× or monthly) is standard for coaching programs and reduces sticker shock.",
+          ? tr(
+              `A payment plan is offered ("${plan}"). Splitting the payment usually lifts take-rate for programs over ~€/$500.`,
+              `È offerto un pagamento rateale ("${plan}"). Rateizzare di solito aumenta le adesioni per i programmi sopra i ~500 €.`
+            )
+          : tr(
+              "No payment plan / installments found. Offering a split payment (e.g. 3× or monthly) is standard for coaching programs and reduces sticker shock.",
+              "Nessun pagamento rateale. Offrire il pagamento in più rate (es. 3 rate o mensile) è la norma nei programmi di coaching e riduce lo shock da prezzo."
+            ),
         weight: 1,
         standard: STANDARDS.cro,
       });
@@ -176,23 +234,38 @@ export function analyzeOffer(ctx: CoachingContext, funnel: FunnelType): Category
   const specific = firstMatch(bodyText, GUARANTEE_SPECIFIC);
   findings.push({
     id: "guarantee",
-    label: "Guarantee / risk reversal",
+    label: tr("Guarantee / risk reversal", "Garanzia / inversione del rischio"),
     status: specific ? "pass" : guarantee ? "warn" : sellsOnPage ? "fail" : "info",
     detail: specific
-      ? `A specific guarantee is stated ("${specific}"). Named, time-bound guarantees get the most trust.`
+      ? tr(
+          `A specific guarantee is stated ("${specific}"). Named, time-bound guarantees get the most trust.`,
+          `È indicata una garanzia specifica ("${specific}"). Le garanzie con un nome e una durata ispirano più fiducia.`
+        )
       : guarantee
-      ? `A guarantee is mentioned ("${guarantee}") but without concrete terms. Name it and add a duration and condition (e.g. "30-day do-the-work guarantee").`
+      ? tr(
+          `A guarantee is mentioned ("${guarantee}") but without concrete terms. Name it and add a duration and condition (e.g. "30-day do-the-work guarantee").`,
+          `Si cita una garanzia ("${guarantee}") ma senza condizioni concrete. Dalle un nome, una durata e una condizione (es. "garanzia di 30 giorni se fai gli esercizi").`
+        )
       : sellsOnPage
-      ? "No guarantee or risk reversal found. For coaching (an intangible, high-trust purchase) a conditional or unconditional guarantee is one of the biggest conversion levers."
-      : "No guarantee on the page. Optional in a call funnel (it's usually presented on the call), but mentioning one (\"results guarantee\", \"soddisfatti o rimborsati\") makes booking feel safer.",
+      ? tr(
+          "No guarantee or risk reversal found. For coaching (an intangible, high-trust purchase) a conditional or unconditional guarantee is one of the biggest conversion levers.",
+          "Nessuna garanzia né inversione del rischio. Nel coaching (un acquisto intangibile che richiede fiducia) una garanzia, condizionata o no, è una delle leve di conversione più forti."
+        )
+      : tr(
+          "No guarantee on the page. Optional in a call funnel (it's usually presented on the call), but mentioning one (\"results guarantee\", \"money-back guarantee\") makes booking feel safer.",
+          "Nessuna garanzia nella pagina. Facoltativa in un funnel a call (di solito si presenta durante la call), ma citarne una (\"garanzia sui risultati\", \"soddisfatti o rimborsati\") rende la prenotazione più sicura."
+        ),
     weight: sellsOnPage ? 3 : 1,
     standard: STANDARDS.hormozi,
   });
 
   return category(
     "offer",
-    "Offer Strength",
-    "How compelling the program offer is: time-to-result, delivery format, curriculum, offer stack, bonuses, pricing and guarantee (Hormozi's Value Equation).",
+    tr("Offer Strength", "Forza dell'offerta"),
+    tr(
+      "How compelling the program offer is: time-to-result, delivery format, curriculum, offer stack, bonuses, pricing and guarantee (Hormozi's Value Equation).",
+      "Quanto è convincente l'offerta del programma: tempo per il risultato, formato, contenuti, stack dell'offerta, bonus, prezzo e garanzia (Value Equation di Hormozi)."
+    ),
     findings
   );
 }

@@ -1,7 +1,29 @@
 export type FindingStatus = "pass" | "warn" | "fail" | "info";
 
+export type Lang = "en" | "it";
+
+/** Report copy in every supported UI language. The server fills in both, so
+ * the page can switch language instantly without re-running the analysis. */
+export type LocalizedText = Record<Lang, string>;
+
+/** A plain string is language-neutral data (a URL, a quote from the page, a
+ * LanguageTool message); a LocalizedText is copy written by the analyzer. */
+export type Text = string | LocalizedText;
+
+export function tr(en: string, it: string): LocalizedText {
+  return { en, it };
+}
+
+export function pick(text: Text, lang: Lang): string {
+  return typeof text === "string" ? text : text[lang];
+}
+
+/** Which analysis to run: a general landing page, or an online coaching
+ * program's sales / free-call page. */
+export type Product = "landing" | "coaching";
+
 export interface FindingItem {
-  text: string;
+  text: Text;
   /** Deep link to where this item appears on the live page, e.g. a Text
    * Fragment URL (`#:~:text=...`) that scrolls to and highlights it. */
   href?: string;
@@ -9,13 +31,13 @@ export interface FindingItem {
 
 export interface Finding {
   id: string;
-  label: string;
+  label: Text;
   status: FindingStatus;
-  detail: string;
+  detail: Text;
   weight: number;
   /** The industry standard / framework this check is benchmarked against
    * (e.g. "Hormozi · Value Equation"), shown as a tag next to the finding. */
-  standard?: string;
+  standard?: Text;
   /** Optional itemized breakdown (e.g. each individual spelling error), shown
    * in the expanded category card. The top-recommendations list only ever
    * uses `detail`, so this doesn't affect that summary. */
@@ -24,10 +46,10 @@ export interface Finding {
 
 export interface CategoryResult {
   key: string;
-  name: string;
+  name: Text;
   score: number;
   grade: string;
-  summary: string;
+  summary: Text;
   findings: Finding[];
 }
 
@@ -42,7 +64,7 @@ export interface PageData {
 
 export interface BlueprintSection {
   id: string;
-  label: string;
+  label: Text;
   status: FindingStatus;
 }
 
@@ -52,35 +74,42 @@ export type FunnelType = "call" | "checkout";
 export type FunnelMode = FunnelType | "auto";
 
 export interface FunnelStep {
-  label: string;
+  label: Text;
   url?: string;
   /** page = a fetched HTML page; embedded = booking widget on the same page;
    * scheduler / checkout / form = hosted third-party tool (not inspectable);
    * unknown = couldn't be resolved. */
   kind: "page" | "embedded" | "scheduler" | "checkout" | "form" | "unknown";
-  notes: string[];
+  notes: Text[];
 }
 
 export interface FunnelInfo {
   type: FunnelType;
   /** True when the type was auto-detected rather than chosen by the user. */
   detected: boolean;
-  reason: string;
+  reason: Text;
   steps: FunnelStep[];
 }
 
+export interface Recommendation {
+  category: Text;
+  detail: Text;
+}
+
 export interface AnalysisReport {
+  product: Product;
   url: string;
   finalUrl: string;
   fetchedAt: string;
   overallScore: number;
   overallGrade: string;
   categories: CategoryResult[];
-  topRecommendations: string[];
-  /** The canonical coaching sales-page sections, in the order top coaching
-   * sales pages present them, with whether each was detected. */
-  blueprint: BlueprintSection[];
-  funnel: FunnelInfo;
+  topRecommendations: Recommendation[];
+  /** Coaching only: the canonical sections of the detected funnel type, in
+   * the order the leading pages present them, with whether each was found. */
+  blueprint?: BlueprintSection[];
+  /** Coaching only: detected funnel type and the steps followed from the CTA. */
+  funnel?: FunnelInfo;
 }
 
 export function scoreFromFindings(findings: Finding[]): number {

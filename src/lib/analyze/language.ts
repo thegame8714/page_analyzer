@@ -16,6 +16,15 @@ export const LANGUAGE_NAMES: Record<string, string> = {
   pt: "Portuguese",
 };
 
+export const LANGUAGE_NAMES_IT: Record<string, string> = {
+  en: "inglese",
+  it: "italiano",
+  es: "spagnolo",
+  fr: "francese",
+  de: "tedesco",
+  pt: "portoghese",
+};
+
 // Common function words are a reliable, cheap signal for language ID when a
 // page doesn't declare <html lang>. Kept short — this only needs to beat a
 // low confidence threshold, not be a full classifier.

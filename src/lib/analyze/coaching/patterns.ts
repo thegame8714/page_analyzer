@@ -1,3 +1,5 @@
+import { LocalizedText, tr } from "../types";
+
 // Keyword patterns for coaching sales pages. JavaScript's `\b` only knows ASCII
 // word characters, so it breaks around accented letters ("sì", "è", "perché").
 // `phrases()` builds a Unicode-aware boundary instead: a match can't be glued
@@ -191,25 +193,25 @@ export const FAQ_SECTION = phrases(
   "preguntas frecuentes", "questions fréquentes", "häufige fragen", "perguntas frequentes"
 );
 
-export const OBJECTIONS: { label: string; re: RegExp }[] = [
+export const OBJECTIONS: { label: LocalizedText; re: RegExp }[] = [
   {
-    label: "time commitment",
+    label: tr("time commitment", "tempo richiesto"),
     re: phrases("how much time", "time commitment", "hours? (?:a|per) week", "too busy", "don't have time", "quanto tempo", "ore (?:a|alla|per) settimana", "non ho tempo", "tempo richiesto", "cuánto tiempo", "combien de temps"),
   },
   {
-    label: "refunds / money",
+    label: tr("refunds / money", "rimborsi / soldi"),
     re: phrases("refund", "can i get my money back", "afford", "worth the investment", "rimbors\\w*", "posso permettermelo", "vale l'investimento", "costo", "reembolso", "remboursement"),
   },
   {
-    label: "will it work for me",
+    label: tr("will it work for me", "funzionerà per me?"),
     re: phrases("will this work for me", "what if it doesn't work", "is this right for me", "i've tried (?:other|everything)", "beginner", "e se non funziona", "funzionerà per me", "fa per me", "principiante", "ho già provato", "funcionará para mí", "débutant"),
   },
   {
-    label: "logistics (start date / access / format)",
+    label: tr("logistics (start date / access / format)", "logistica (inizio / accesso / formato)"),
     re: phrases("when does it start", "how long do i have access", "what if i miss", "is it live", "recorded", "quando inizia", "per quanto tempo (?:avrò|ho) accesso", "se perdo", "è registrat\\w*", "cuándo empieza", "quand commence"),
   },
   {
-    label: "difference vs. alternatives",
+    label: tr("difference vs. alternatives", "differenza rispetto alle alternative"),
     re: phrases("how is this different", "what makes this different", "why (?:this|not) ", "cosa (?:lo|la|ti) rende divers\\w*", "in cosa è divers\\w*", "perché questo", "qué lo hace diferente", "en quoi est-ce différent"),
   },
 ];

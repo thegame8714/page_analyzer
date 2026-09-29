@@ -2,7 +2,7 @@ import { CheerioDoc, getHeadings, getMainContentText, getVisibleText } from "../
 import { CTA_PATTERN } from "../cta";
 import { DetectedLanguage, detectLanguage } from "../language";
 import { splitWords } from "../textUtils";
-import { CategoryResult, Finding, FindingItem, gradeFromScore, scoreFromFindings } from "../types";
+import { CategoryResult, Finding, FindingItem, gradeFromScore, scoreFromFindings, Text } from "../types";
 import { COACHING_CTA } from "./patterns";
 
 /** Everything the coaching checks need, extracted from the DOM once. */
@@ -84,7 +84,7 @@ export function firstMatch(text: string, re: RegExp): string | null {
   return m ? m[0] : null;
 }
 
-export function category(key: string, name: string, summary: string, findings: Finding[]): CategoryResult {
+export function category(key: string, name: Text, summary: Text, findings: Finding[]): CategoryResult {
   const score = scoreFromFindings(findings);
   return { key, name, score, grade: gradeFromScore(score), summary, findings };
 }

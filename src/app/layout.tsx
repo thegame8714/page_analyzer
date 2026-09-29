@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import { LanguageProvider } from "@/components/LanguageProvider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -13,9 +14,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Coaching Sales Page Analyzer",
+  title: "Conversion Analyzer",
   description:
-    "Score an online coaching program sales page against Hormozi, Brunson, StoryBrand, Cialdini and FTC standards, plus SEO, GEO, clarity and grammar.",
+    "Score a landing page, or an online coaching program's sales or free-call page, on conversion, SEO, GEO, clarity and grammar. In English or Italian.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
@@ -24,7 +25,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        <LanguageProvider>{children}</LanguageProvider>
+      </body>
     </html>
   );
 }

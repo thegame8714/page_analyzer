@@ -1,7 +1,8 @@
 import { CheerioDoc, getProseText } from "./dom";
 import { DetectedLanguage, detectLanguage } from "./language";
 import { splitWords } from "./textUtils";
-import { CategoryResult, Finding, FindingItem, gradeFromScore, scoreFromFindings } from "./types";
+import { languageNote } from "./clarity";
+import { CategoryResult, Finding, FindingItem, Lang, LocalizedText, gradeFromScore, scoreFromFindings, tr } from "./types";
 
 // LanguageTool needs a region variant for some languages; bare codes 404/400.
 // Only used when we're reasonably confident (html-lang or stopword match) —
@@ -23,6 +24,9 @@ interface LanguageToolMatch {
   rule?: { id?: string; issueType?: string; category?: { id?: string; name?: string } };
   context?: { text: string; offset: number; length: number };
   replacements?: { value: string }[];
+  /** Set on this analyzer's own offline-fallback issues (LanguageTool's
+   * messages come back in the page's language and are shown as-is). */
+  localized?: LocalizedText;
 }
 
 const MAX_CHARS = 9000;
@@ -118,11 +122,14 @@ function describeMatch(m: LanguageToolMatch, pageUrl: string): FindingItem {
     .slice(0, 3)
     .map((r) => r.value)
     .filter(Boolean);
-  const message = m.shortMessage || m.message;
-  const suggestionText = suggestions.length > 0 ? ` (suggested: "${suggestions.join('", "')}")` : "";
-  const text = flagged ? `"${flagged}" — ${message}${suggestionText}` : `${message}${suggestionText}`;
+  const line = (lang: Lang) => {
+    const message = m.localized?.[lang] ?? (m.shortMessage || m.message);
+    const suggestionText =
+      suggestions.length > 0 ? ` (${lang === "it" ? "suggerimenti" : "suggested"}: "${suggestions.join('", "')}")` : "";
+    return flagged ? `"${flagged}" — ${message}${suggestionText}` : `${message}${suggestionText}`;
+  };
   return {
-    text,
+    text: tr(line("en"), line("it")),
     href: flagged ? buildTextFragmentUrl(pageUrl, flagged) : undefined,
   };
 }
@@ -130,7 +137,7 @@ function describeMatch(m: LanguageToolMatch, pageUrl: string): FindingItem {
 function itemize(matches: LanguageToolMatch[], pageUrl: string): FindingItem[] {
   const items = matches.slice(0, MAX_ITEMS).map((m) => describeMatch(m, pageUrl));
   if (matches.length > MAX_ITEMS) {
-    items.push({ text: `…and ${matches.length - MAX_ITEMS} more.` });
+    items.push({ text: tr(`…and ${matches.length - MAX_ITEMS} more.`, `…e altri ${matches.length - MAX_ITEMS}.`) });
   }
   return items;
 }
@@ -167,6 +174,7 @@ function heuristicIssues(text: string): LanguageToolMatch[] {
   if (doubleSpace) {
     issues.push({
       message: `Found ${doubleSpace.length} instance(s) of double spacing.`,
+      localized: tr(`Found ${doubleSpace.length} instance(s) of double spacing.`, `Trovati ${doubleSpace.length} doppi spazi.`),
       offset: 0,
       length: 0,
       rule: { issueType: "typographical" },
@@ -176,6 +184,10 @@ function heuristicIssues(text: string): LanguageToolMatch[] {
   if (repeated) {
     issues.push({
       message: `Found ${repeated.length} repeated word(s) (e.g. "${repeated[0]}").`,
+      localized: tr(
+        `Found ${repeated.length} repeated word(s) (e.g. "${repeated[0]}").`,
+        `Trovate ${repeated.length} parole ripetute (es. "${repeated[0]}").`
+      ),
       offset: 0,
       length: 0,
       rule: { issueType: "duplication" },
@@ -189,22 +201,26 @@ export async function analyzeGrammar($: CheerioDoc, pageUrl: string): Promise<Ca
   const text = getProseText($).slice(0, MAX_CHARS);
   const wordCount = splitWords(text).length;
   const language: DetectedLanguage = detectLanguage($, text);
-  const summary = `Spelling and grammar correctness of the on-page copy. Detected content language: ${language.name}${
-    language.source === "html-lang" ? "" : " (inferred — no <html lang> attribute set)"
-  }.`;
+  const note = languageNote(language);
+  const summary = tr(
+    `Spelling and grammar correctness of the on-page copy. ${note.en}`,
+    `Correttezza ortografica e grammaticale dei testi della pagina. ${note.it}`
+  );
+  const name = tr("Grammar", "Grammatica");
+  const example = (m: LanguageToolMatch, lang: Lang) => m.localized?.[lang] ?? m.message;
 
   if (wordCount < 20) {
     findings.push({
       id: "not-enough-text",
-      label: "Text volume",
+      label: tr("Text volume", "Quantità di testo"),
       status: "info",
-      detail: "Not enough text on the page to run a grammar check.",
+      detail: tr("Not enough text on the page to run a grammar check.", "Non c'è abbastanza testo per il controllo grammaticale."),
       weight: 1,
     });
     const score = scoreFromFindings(findings);
     return {
       key: "grammar",
-      name: "Grammar",
+      name,
       score,
       grade: gradeFromScore(score),
       summary,
@@ -260,48 +276,58 @@ export async function analyzeGrammar($: CheerioDoc, pageUrl: string): Promise<Ca
 
   findings.push({
     id: "spelling",
-    label: "Spelling",
+    label: tr("Spelling", "Ortografia"),
     status: spelling.length === 0 ? "pass" : spelling.length <= 2 ? "warn" : "fail",
     detail:
       spelling.length === 0
-        ? "No spelling errors detected."
-        : `${spelling.length} likely spelling error(s) found${
-            spelling[0] ? `, e.g. "${spelling[0].message}"` : ""
-          }.`,
+        ? tr("No spelling errors detected.", "Nessun errore di ortografia rilevato.")
+        : tr(
+            `${spelling.length} likely spelling error(s) found, e.g. "${example(spelling[0], "en")}".`,
+            `${spelling.length} probabili errori di ortografia, es. "${example(spelling[0], "it")}".`
+          ),
     weight: 3,
     items: spelling.length > 0 ? itemize(spelling, pageUrl) : undefined,
   });
 
   findings.push({
     id: "grammar-style",
-    label: "Grammar & style",
+    label: tr("Grammar & style", "Grammatica e stile"),
     status: grammarIssues.length === 0 ? "pass" : grammarIssues.length <= 3 ? "warn" : "fail",
     detail:
       grammarIssues.length === 0
-        ? "No grammar or style issues detected."
-        : `${grammarIssues.length} grammar/style issue(s) found${
-            grammarIssues[0] ? `, e.g. "${grammarIssues[0].message}"` : ""
-          }.`,
+        ? tr("No grammar or style issues detected.", "Nessun problema di grammatica o stile rilevato.")
+        : tr(
+            `${grammarIssues.length} grammar/style issue(s) found, e.g. "${example(grammarIssues[0], "en")}".`,
+            `${grammarIssues.length} problemi di grammatica/stile, es. "${example(grammarIssues[0], "it")}".`
+          ),
     weight: 3,
     items: grammarIssues.length > 0 ? itemize(grammarIssues, pageUrl) : undefined,
   });
 
   findings.push({
     id: "error-density",
-    label: "Overall error density",
+    label: tr("Overall error density", "Densità complessiva di errori"),
     status: issuesPer100Words < 1 ? "pass" : issuesPer100Words < 3 ? "warn" : "fail",
-    detail: `${totalIssues} total issue(s) across ~${wordCount} words (${issuesPer100Words.toFixed(
-      1
-    )} per 100 words).${usedFallback ? " (Basic offline check used — live grammar API was unreachable.)" : ""}`,
+    detail: tr(
+      `${totalIssues} total issue(s) across ~${wordCount} words (${issuesPer100Words.toFixed(1)} per 100 words).${
+        usedFallback ? " (Basic offline check used — live grammar API was unreachable.)" : ""
+      }`,
+      `${totalIssues} problemi in totale su ~${wordCount} parole (${issuesPer100Words.toFixed(1)} ogni 100 parole).${
+        usedFallback ? " (Usato un controllo offline di base: il servizio grammaticale online non era raggiungibile.)" : ""
+      }`
+    ),
     weight: 2,
   });
 
   if (other.length > 0) {
     findings.push({
       id: "misc-issues",
-      label: "Other issues",
+      label: tr("Other issues", "Altri problemi"),
       status: other.length <= 2 ? "warn" : "fail",
-      detail: `${other.length} other issue(s), e.g. "${other[0].message}".`,
+      detail: tr(
+        `${other.length} other issue(s), e.g. "${example(other[0], "en")}".`,
+        `${other.length} altri problemi, es. "${example(other[0], "it")}".`
+      ),
       weight: 1,
       items: itemize(other, pageUrl),
     });
@@ -310,7 +336,7 @@ export async function analyzeGrammar($: CheerioDoc, pageUrl: string): Promise<Ca
   const score = scoreFromFindings(findings);
   return {
     key: "grammar",
-    name: "Grammar",
+    name,
     score,
     grade: gradeFromScore(score),
     summary,

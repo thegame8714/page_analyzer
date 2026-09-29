@@ -1,15 +1,26 @@
-# Coaching Sales Page Analyzer
+# Conversion Analyzer
 
-Paste the URL of an online coaching program's sales page and get a scored audit
-of everything that affects its ability to convert, benchmarked against the
-standards the top coaching sales pages follow.
+Paste a URL and get a scored audit of everything that affects the page's
+ability to convert. Two analysis types:
+
+- **Landing page**: the original Landing Page Analyzer (conversion
+  readiness, SEO, GEO, text clarity, content efficiency, grammar).
+- **Evergreen**: an online coaching program's sales or free-call page,
+  benchmarked against the standards the leading coaching businesses follow
+  (see below).
+
+The interface and the whole report can be shown in **English or Italian**
+(toggle in the header, remembered per browser). The API returns every report
+text in both languages (`{ en, it }`), so switching never re-runs the
+analysis. Quotes from the analyzed page and LanguageTool's grammar messages
+stay in the page's own language.
 
 ```bash
 npm install
 npm run dev   # http://localhost:3000
 ```
 
-## Funnel types
+## Funnel types (Evergreen)
 
 The analyzer auto-detects (or you choose) which funnel the page runs, then
 follows the main CTA to the next step:
@@ -46,6 +57,10 @@ and Portuguese support.
 
 ## Layout
 
+- `src/lib/analyze/types.ts`: report types, plus `tr(en, it)` / `pick()` for
+  bilingual report text. `src/lib/i18n.ts` holds the interface strings and
+  `src/components/LanguageProvider.tsx` the language toggle.
+- `src/lib/analyze/landing/conversion.ts`: the Landing page conversion check.
 - `src/lib/analyze/coaching/`: coaching-specific checks (`offer.ts`,
   `framework.ts`, `trust.ts`), keyword patterns (`patterns.ts`), standards
   labels (`standards.ts`) and shared page context (`context.ts`).

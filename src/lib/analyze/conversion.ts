@@ -7,7 +7,7 @@ import {
   TRACKING_SIGNATURES,
 } from "./coaching/patterns";
 import { STANDARDS } from "./coaching/standards";
-import { CategoryResult, Finding } from "./types";
+import { CategoryResult, Finding, tr } from "./types";
 
 /**
  * Technical conversion mechanics: can the visitor act quickly, on mobile, on a
@@ -36,14 +36,17 @@ export function analyzeConversion(
   const ctaFoldRatio = firstCtaIndex === -1 ? 1 : firstCtaIndex / totalNodes;
   findings.push({
     id: "above-fold-cta",
-    label: "Above-the-fold call-to-action",
+    label: tr("Above-the-fold call-to-action", "Call to action above the fold"),
     status: firstCtaIndex === -1 ? "fail" : ctaFoldRatio <= 0.3 ? "pass" : "warn",
     detail:
       firstCtaIndex === -1
-        ? "Couldn't find a clear CTA button/link on the page."
+        ? tr("Couldn't find a clear CTA button/link on the page.", "Nessun pulsante/link di CTA chiaro nella pagina.")
         : ctaFoldRatio <= 0.3
-        ? "A call-to-action appears early in the page, likely in the hero."
-        : "The first call-to-action appears fairly deep in the page. Put a CTA (or a \"see the program ↓\" anchor) in the hero.",
+        ? tr("A call-to-action appears early in the page, likely in the hero.", "Una call to action compare presto, probabilmente già nell'apertura.")
+        : tr(
+            "The first call-to-action appears fairly deep in the page. Put a CTA (or a \"see the program ↓\" anchor) in the hero.",
+            "La prima call to action compare piuttosto in basso. Metti una CTA (o un link \"scopri il programma ↓\") nell'apertura."
+          ),
     weight: 3,
     standard: STANDARDS.cro,
   });
@@ -56,14 +59,23 @@ export function analyzeConversion(
   const hasConversionPath = formCount > 0 || looseLeadFields > 0 || ctx.ctaTexts.length > 0;
   findings.push({
     id: "conversion-path",
-    label: "Working checkout / booking / application path",
+    label: tr("Working checkout / booking / application path", "Percorso di acquisto / prenotazione / candidatura funzionante"),
     status: checkoutLinks > 0 || hasConversionPath ? "pass" : "fail",
     detail:
       checkoutLinks > 0
-        ? `${checkoutLinks} link(s)/embed(s) go straight to a checkout, booking or application tool, so there's no dead end between intent and payment.`
+        ? tr(
+            `${checkoutLinks} link(s)/embed(s) go straight to a checkout, booking or application tool, so there's no dead end between intent and payment.`,
+            `${checkoutLinks} link/elementi incorporati portano direttamente a un checkout, a una prenotazione o a una candidatura: nessun vicolo cieco tra intenzione e pagamento.`
+          )
         : hasConversionPath
-        ? `Found ${formCount > 0 ? `${formCount} form(s)` : `${looseLeadFields} input field(s)`} and ${ctx.ctaTexts.length} CTA element(s). Make sure each CTA lands on checkout/booking in one click.`
-        : "No form, CTA or checkout/booking link found. There's no obvious way to buy or apply.",
+        ? tr(
+            `Found ${formCount > 0 ? `${formCount} form(s)` : `${looseLeadFields} input field(s)`} and ${ctx.ctaTexts.length} CTA element(s). Make sure each CTA lands on checkout/booking in one click.`,
+            `Trovati ${formCount > 0 ? `${formCount} form` : `${looseLeadFields} campi di input`} e ${ctx.ctaTexts.length} CTA. Assicurati che ogni CTA porti al checkout/prenotazione con un clic.`
+          )
+        : tr(
+            "No form, CTA or checkout/booking link found. There's no obvious way to buy or apply.",
+            "Nessun form, CTA o link di checkout/prenotazione. Non c'è un modo evidente per acquistare o candidarsi."
+          ),
     weight: 3,
     standard: STANDARDS.cro,
   });
@@ -71,11 +83,17 @@ export function analyzeConversion(
   const viewport = $('meta[name="viewport"]').attr("content");
   findings.push({
     id: "mobile-ux",
-    label: "Mobile experience readiness",
+    label: tr("Mobile experience readiness", "Esperienza mobile"),
     status: viewport ? "pass" : "fail",
     detail: viewport
-      ? "Responsive viewport tag present. Most coaching traffic from Instagram/TikTok/Meta ads is mobile."
-      : "No responsive viewport meta tag. Social-ad traffic (mostly mobile) will see a broken layout.",
+      ? tr(
+          "Responsive viewport tag present. Most coaching traffic from Instagram/TikTok/Meta ads is mobile.",
+          "Tag viewport responsive presente. La maggior parte del traffico di coaching da Instagram/TikTok/Meta Ads arriva da mobile."
+        )
+      : tr(
+          "No responsive viewport meta tag. Social-ad traffic (mostly mobile) will see a broken layout.",
+          "Manca il meta tag viewport responsive. Il traffico dalle inserzioni social (quasi tutto mobile) vedrà un layout rotto."
+        ),
     weight: 2,
     standard: STANDARDS.cwv,
   });
@@ -87,9 +105,12 @@ export function analyzeConversion(
   const sizeKb = htmlSizeBytes / 1024;
   findings.push({
     id: "page-weight",
-    label: "Estimated page weight & speed",
+    label: tr("Estimated page weight & speed", "Peso e velocità stimati della pagina"),
     status: sizeKb <= 300 && fetchMs <= 1500 && scriptCount <= 25 ? "pass" : sizeKb <= 800 && fetchMs <= 3000 ? "warn" : "fail",
-    detail: `HTML is ${sizeKb.toFixed(0)}KB with ${scriptCount} scripts, ${stylesheetCount} stylesheets and ${imageCount} images (${lazyImages} lazy-loaded); server responded in ${fetchMs}ms. Long sales pages from builders get heavy fast, and every extra second of load costs conversions.`,
+    detail: tr(
+      `HTML is ${sizeKb.toFixed(0)}KB with ${scriptCount} scripts, ${stylesheetCount} stylesheets and ${imageCount} images (${lazyImages} lazy-loaded); server responded in ${fetchMs}ms. Long sales pages from builders get heavy fast, and every extra second of load costs conversions.`,
+      `L'HTML pesa ${sizeKb.toFixed(0)}KB con ${scriptCount} script, ${stylesheetCount} fogli di stile e ${imageCount} immagini (${lazyImages} con caricamento differito); il server ha risposto in ${fetchMs}ms. Le pagine di vendita lunghe fatte con i page builder si appesantiscono in fretta, e ogni secondo di caricamento in più costa conversioni.`
+    ),
     weight: 2,
     standard: STANDARDS.cwv,
   });
@@ -98,12 +119,18 @@ export function analyzeConversion(
   const adPixel = trackers.some((t) => /Meta|TikTok|LinkedIn/.test(t));
   findings.push({
     id: "tracking",
-    label: "Conversion tracking installed",
+    label: tr("Conversion tracking installed", "Tracciamento delle conversioni installato"),
     status: trackers.length === 0 ? "warn" : "pass",
     detail:
       trackers.length === 0
-        ? "No analytics or ad pixel detected (GA4, GTM, Meta Pixel…). Without tracking you can't measure sales-page conversion or retarget visitors who didn't buy. (Tags injected only after cookie consent won't be visible here.)"
-        : `Detected: ${trackers.join(", ")}.${adPixel ? "" : " No ad pixel found; add Meta/TikTok pixels if you run or plan to run paid traffic and retargeting."}`,
+        ? tr(
+            "No analytics or ad pixel detected (GA4, GTM, Meta Pixel…). Without tracking you can't measure sales-page conversion or retarget visitors who didn't buy. (Tags injected only after cookie consent won't be visible here.)",
+            "Nessun analytics o pixel pubblicitario rilevato (GA4, GTM, Meta Pixel…). Senza tracciamento non puoi misurare le conversioni né fare retargeting su chi non ha comprato. (I tag caricati solo dopo il consenso ai cookie qui non sono visibili.)"
+          )
+        : tr(
+            `Detected: ${trackers.join(", ")}.${adPixel ? "" : " No ad pixel found; add Meta/TikTok pixels if you run or plan to run paid traffic and retargeting."}`,
+            `Rilevati: ${trackers.join(", ")}.${adPixel ? "" : " Nessun pixel pubblicitario: aggiungi i pixel Meta/TikTok se fai o farai traffico a pagamento e retargeting."}`
+          ),
     weight: 1,
     standard: STANDARDS.cro,
   });
@@ -111,11 +138,17 @@ export function analyzeConversion(
   const hasChat = CHAT_CHANNEL.test(html);
   findings.push({
     id: "chat",
-    label: "Quick-question channel (chat / WhatsApp / DM)",
+    label: tr("Quick-question channel (chat / WhatsApp / DM)", "Canale per domande veloci (chat / WhatsApp / DM)"),
     status: hasChat ? "pass" : "info",
     detail: hasChat
-      ? "A chat, WhatsApp or DM link lets hesitant buyers ask a question before purchasing, a proven lift for higher-priced programs."
-      : "No chat/WhatsApp/DM link. Optional, but a \"Questions? Message us\" link rescues buyers who have one last objection.",
+      ? tr(
+          "A chat, WhatsApp or DM link lets hesitant buyers ask a question before purchasing, a proven lift for higher-priced programs.",
+          "Un link a chat, WhatsApp o DM permette a chi è indeciso di fare una domanda prima di comprare: un aiuto comprovato per i programmi più costosi."
+        )
+      : tr(
+          "No chat/WhatsApp/DM link. Optional, but a \"Questions? Message us\" link rescues buyers who have one last objection.",
+          "Nessun link a chat/WhatsApp/DM. Facoltativo, ma un \"Hai domande? Scrivici\" recupera chi ha un'ultima obiezione."
+        ),
     weight: 1,
     standard: STANDARDS.cro,
   });
@@ -124,17 +157,20 @@ export function analyzeConversion(
   if (platforms.length > 0) {
     findings.push({
       id: "platform",
-      label: "Detected tech stack",
+      label: tr("Detected tech stack", "Tecnologie rilevate"),
       status: "info",
-      detail: `Built with / integrates: ${platforms.join(", ")}.`,
+      detail: tr(`Built with / integrates: ${platforms.join(", ")}.`, `Realizzata con / integra: ${platforms.join(", ")}.`),
       weight: 0,
     });
   }
 
   return category(
     "conversion",
-    "Conversion UX",
-    "Technical conversion mechanics: above-the-fold CTA, one-click checkout/booking, mobile, speed, tracking and support channel.",
+    tr("Conversion UX", "UX di conversione"),
+    tr(
+      "Technical conversion mechanics: above-the-fold CTA, one-click checkout/booking, mobile, speed, tracking and support channel.",
+      "Meccanica tecnica della conversione: CTA above the fold, checkout/prenotazione in un clic, mobile, velocità, tracciamento e canale di supporto."
+    ),
     findings
   );
 }
