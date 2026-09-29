@@ -47,6 +47,22 @@ const en = {
   statusFail: "Fail",
   statusInfo: "Informational",
   open: "Open ↗",
+  competitorsTitle: "Top 3 competitors",
+  competitorsSubtitle:
+    "An AI research agent reads your page, searches the web for its closest direct competitors, then every page goes through the same checks.",
+  competitorsLoading: "Researching competitors and analyzing their pages… this usually takes 1-3 minutes.",
+  competitorsRequest: "Request",
+  comingSoon: "Coming soon",
+  competitorsIdle: "Compare this page with its top 3 competitors. It usually takes 1-3 minutes.",
+  yourPage: "Your page",
+  ranking: "Ranking",
+  overall: "Overall",
+  categoryComparison: "Category comparison",
+  categoryColumn: "Category",
+  topStrengths: "Top 5 strengths",
+  youLackThis: "you don't have this",
+  notAnalyzed: "Not analyzed",
+  noStrengths: "No passed checks yet.",
 };
 
 type Dictionary = typeof en;
@@ -95,6 +111,22 @@ const it: Dictionary = {
   statusFail: "Non superato",
   statusInfo: "Informativo",
   open: "Apri ↗",
+  competitorsTitle: "I 3 principali concorrenti",
+  competitorsSubtitle:
+    "Un agente di ricerca AI legge la tua pagina, cerca sul web i concorrenti diretti più vicini e poi ogni pagina passa per gli stessi controlli.",
+  competitorsLoading: "Ricerca dei concorrenti e analisi delle loro pagine in corso… di solito servono 1-3 minuti.",
+  competitorsRequest: "Richiedi",
+  comingSoon: "Prossimamente",
+  competitorsIdle: "Confronta questa pagina con i suoi 3 principali concorrenti. Di solito servono 1-3 minuti.",
+  yourPage: "La tua pagina",
+  ranking: "Classifica",
+  overall: "Complessivo",
+  categoryComparison: "Confronto per categoria",
+  categoryColumn: "Categoria",
+  topStrengths: "I 5 punti di forza principali",
+  youLackThis: "a te manca",
+  notAnalyzed: "Non analizzato",
+  noStrengths: "Ancora nessun controllo superato.",
 };
 
 export const DICTIONARIES: Record<Lang, Dictionary> = { en, it };

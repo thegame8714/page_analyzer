@@ -173,7 +173,7 @@ function weightedScore(categories: CategoryResult[], weights: Record<string, num
   return Math.round(categories.reduce((sum, c) => sum + c.score * (weights[c.key] ?? 1), 0) / total);
 }
 
-async function loadPage(rawUrl: string): Promise<{ url: string; page: PageData }> {
+export async function loadPage(rawUrl: string): Promise<{ url: string; page: PageData }> {
   const url = normalizeUrl(rawUrl);
   let page;
   try {

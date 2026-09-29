@@ -20,6 +20,36 @@ npm install
 npm run dev   # http://localhost:3000
 ```
 
+## Top 3 competitors
+
+> **Currently disabled.** The section is shown greyed out with a "Coming soon"
+> badge and a disabled button, and `/api/competitors` returns 403. Set
+> `COMPETITORS_ENABLED = true` in `src/lib/features.ts` to switch it on.
+
+Under every report, a **Request** button (IT: "Richiedi") starts an on-demand
+comparison via `/api/competitors`. Nothing runs, and no API credits are used,
+until it is clicked:
+
+1. A research agent (Claude Opus 5 with web search) reads the analyzed page's
+   content and finds its 3 closest direct competitors: same offer, audience,
+   language and market. It returns their most comparable page (sales or
+   free-call page when there is one).
+2. Each competitor page is analyzed with the same checks (same analysis type;
+   funnel auto-detected).
+3. The report shows an overall ranking, a category-by-category table with the
+   leader highlighted, and each site's top 5 strengths (its highest-weight
+   passed checks). Strengths a competitor has and your page lacks are flagged.
+
+This needs an Anthropic API key. Create `.env.local` in the project root:
+
+```bash
+ANTHROPIC_API_KEY=sk-ant-...
+```
+
+Then restart the dev server. Without a key the rest of the report works
+normally and the competitor section explains what's missing. Each run uses
+API credits (model tokens plus up to 8 web searches).
+
 ## Funnel types (Evergreen)
 
 The analyzer auto-detects (or you choose) which funnel the page runs, then
@@ -61,6 +91,8 @@ and Portuguese support.
   bilingual report text. `src/lib/i18n.ts` holds the interface strings and
   `src/components/LanguageProvider.tsx` the language toggle.
 - `src/lib/analyze/landing/conversion.ts`: the Landing page conversion check.
+- `src/lib/analyze/competitors/`: the research agent (`agent.ts`), the
+  competitor pipeline (`index.ts`) and ranking/strength helpers (`compare.ts`).
 - `src/lib/analyze/coaching/`: coaching-specific checks (`offer.ts`,
   `framework.ts`, `trust.ts`), keyword patterns (`patterns.ts`), standards
   labels (`standards.ts`) and shared page context (`context.ts`).

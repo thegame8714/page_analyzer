@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useRef, useState } from "react";
 import { AnalysisReport, FunnelMode, Product, Text, tr } from "@/lib/analyze/types";
 import { AnalysisError, normalizeUrl } from "@/lib/analyze/normalizeUrl";
 import { ScoreGauge } from "@/components/ScoreGauge";
@@ -8,6 +8,7 @@ import { CategoryCard } from "@/components/CategoryCard";
 import { Legend } from "@/components/Legend";
 import { Blueprint } from "@/components/Blueprint";
 import { FunnelFlow } from "@/components/FunnelFlow";
+import { CompetitorsPanel, CompetitorsState } from "@/components/CompetitorsPanel";
 import { LanguageToggle, useLanguage } from "@/components/LanguageProvider";
 import { DICTIONARIES } from "@/lib/i18n";
 
@@ -89,6 +90,31 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Text | null>(null);
   const [report, setReport] = useState<AnalysisReport | null>(null);
+  const [competitors, setCompetitors] = useState<CompetitorsState | null>(null);
+  const competitorsRequest = useRef<AbortController | null>(null);
+
+  // Runs only when the user clicks "Request" under a report: the research
+  // agent finds the page's top 3 competitors and the server analyzes them too.
+  async function loadCompetitors(analyzed: AnalysisReport) {
+    const controller = new AbortController();
+    competitorsRequest.current = controller;
+    setCompetitors({ status: "loading" });
+    try {
+      const res = await fetch("/api/competitors", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: analyzed.finalUrl, product: analyzed.product }),
+        signal: controller.signal,
+      });
+      const data = await res.json();
+      if (controller.signal.aborted) return;
+      setCompetitors(
+        res.ok ? { status: "done", competitors: data.competitors } : { status: "error", error: data.error ?? bothLanguages("genericError") }
+      );
+    } catch {
+      if (!controller.signal.aborted) setCompetitors({ status: "error", error: bothLanguages("networkError") });
+    }
+  }
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -98,6 +124,8 @@ export default function Home() {
     // must never linger once a new analysis is requested, even if this
     // attempt fails validation before a request is even sent.
     setReport(null);
+    competitorsRequest.current?.abort();
+    setCompetitors(null);
     setError(null);
 
     let normalized: string;
@@ -121,6 +149,7 @@ export default function Home() {
         return;
       }
       setReport(data as AnalysisReport);
+      setCompetitors({ status: "idle" });
     } catch {
       setError(bothLanguages("networkError"));
     } finally {
@@ -250,6 +279,10 @@ export default function Home() {
                       ))}
                     </ol>
                   </div>
+                )}
+
+                {competitors && (
+                  <CompetitorsPanel target={report} state={competitors} onRequest={() => void loadCompetitors(report)} />
                 )}
 
                 {report.funnel && <FunnelFlow funnel={report.funnel} />}
