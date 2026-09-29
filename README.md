@@ -17,8 +17,27 @@ stay in the page's own language.
 
 ```bash
 npm install
+cp .env.example .env.local   # then fill in the values
 npm run dev   # http://localhost:3000
 ```
+
+## Access
+
+Every page and API requires signing in at `/login` with an email on the
+allowlist:
+
+- `ALLOWED_EMAILS` in `.env.local`: comma-separated, case-insensitive. Edit
+  it and restart the server to add or remove people; removing an email also
+  ends that person's existing session.
+- `AUTH_SECRET`: a random string (32+ characters) that signs the session
+  cookie (HTTP-only, 30 days). Changing it signs everyone out.
+
+The list is kept out of the repository on purpose. When deploying, set both
+variables in the hosting provider's environment settings.
+
+This checks that an email is on the list, not that the visitor owns it:
+anyone who knows an allowed address can get in. For real verification, add
+an emailed one-time link or code.
 
 ## Top 3 competitors
 

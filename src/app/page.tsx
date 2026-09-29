@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { AnalysisReport, FunnelMode, Product, Text, tr } from "@/lib/analyze/types";
 import { AnalysisError, normalizeUrl } from "@/lib/analyze/normalizeUrl";
 import { ScoreGauge } from "@/components/ScoreGauge";
@@ -84,6 +85,7 @@ function Pills<T extends string>({
 
 export default function Home() {
   const { t, p } = useLanguage();
+  const router = useRouter();
   const [url, setUrl] = useState("");
   const [product, setProduct] = useState<Product>("coaching");
   const [mode, setMode] = useState<FunnelMode>("auto");
@@ -157,6 +159,11 @@ export default function Home() {
     }
   }
 
+  async function signOut() {
+    await fetch("/api/logout", { method: "POST" }).catch(() => undefined);
+    router.replace("/login");
+  }
+
   function handleUrlChange(value: string) {
     setUrl(value);
     if (error) setError(null);
@@ -217,7 +224,14 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
       <div className="mx-auto max-w-4xl px-4 py-6 sm:py-8">
-        <div className="flex justify-end">
+        <div className="flex items-center justify-end gap-3">
+          <button
+            type="button"
+            onClick={signOut}
+            className="text-xs text-slate-400 underline-offset-4 hover:text-slate-200 hover:underline"
+          >
+            {t.signOut}
+          </button>
           <LanguageToggle />
         </div>
         {!hasResult ? (

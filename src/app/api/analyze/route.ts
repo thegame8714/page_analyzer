@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { AnalysisError, analyzePage } from "@/lib/analyze";
 import { tr } from "@/lib/analyze/types";
+import { sessionEmail } from "@/lib/auth/session";
 
 export const maxDuration = 60;
 
 export async function POST(req: NextRequest) {
+  if (!sessionEmail(req)) {
+    return NextResponse.json({ error: tr("Please sign in.", "Accedi per continuare.") }, { status: 401 });
+  }
   let body: { url?: string; mode?: string; product?: string };
   try {
     body = await req.json();

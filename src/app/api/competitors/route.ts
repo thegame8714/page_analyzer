@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { AnalysisError } from "@/lib/analyze";
 import { CompetitorAgentError, analyzeCompetitors } from "@/lib/analyze/competitors";
 import { tr } from "@/lib/analyze/types";
+import { sessionEmail } from "@/lib/auth/session";
 import { COMPETITORS_ENABLED } from "@/lib/features";
 
 // Web research plus three full page analyses: allow well over a minute.
@@ -21,6 +22,9 @@ const AGENT_ERRORS = {
 };
 
 export async function POST(req: NextRequest) {
+  if (!sessionEmail(req)) {
+    return NextResponse.json({ error: tr("Please sign in.", "Accedi per continuare.") }, { status: 401 });
+  }
   if (!COMPETITORS_ENABLED) {
     return NextResponse.json(
       { error: tr("Competitor comparison is not available yet.", "Il confronto con i concorrenti non è ancora disponibile.") },
