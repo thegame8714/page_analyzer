@@ -1,5 +1,5 @@
 import { CheerioDoc, getJsonLdBlocks, getVisibleText, jsonLdTypes } from "./dom";
-import { CTA_PATTERN, countLeadCaptureFields } from "./cta";
+import { CTA_SELECTOR, countLeadCaptureFields, findCtaElements, isCtaElement } from "./cta";
 import { CategoryResult, Finding, gradeFromScore, scoreFromFindings } from "./types";
 
 // English-only keyword matching false-negatives on any non-English page (e.g. an
@@ -7,7 +7,7 @@ import { CategoryResult, Finding, gradeFromScore, scoreFromFindings } from "./ty
 // "no testimonials"). Covers the languages most likely to show up; still not
 // exhaustive, so it's paired with a video-embed count as a language-independent signal.
 const TESTIMONIAL_PATTERN =
-  /\b(testimonial|review|what our customers|customer stories|case stud(y|ies)|success stor(y|ies)|testimonianz\w*|recension\w*|storie? di successo|caso studio|casi studio|dicono di noi|témoignages?|avis clients?|études? de cas|ce que disent|testimonios?|reseñas?|casos de éxito|lo que dicen|kundenstimmen|erfahrungsberichte|erfolgsgeschichten|bewertungen|depoimentos?|avalia(ç|c)(ã|a)o(es)?|casos de sucesso)\b/i;
+  /\b(testimonials?|reviews?|what (?:[\w']+\s+){0,3}?(?:are\s+)?saying|what (?:our |my |past )?(?:clients|customers|attendees|students|people|others|users|members) (?:are )?(?:say|saying)|wall of love|customer stories|case stud(y|ies)|success stor(y|ies)|testimonianz\w*|recension\w*|storie? di successo|caso studio|casi studio|dicono di noi|témoignages?|avis clients?|études? de cas|ce que disent|testimonios?|reseñas?|casos de éxito|lo que dicen|kundenstimmen|erfahrungsberichte|erfolgsgeschichten|bewertungen|depoimentos?|avalia(ç|c)(ã|a)o(es)?|casos de sucesso)\b/i;
 const VIDEO_EMBED_SELECTOR =
   'iframe[src*="youtube"], iframe[src*="youtu.be"], iframe[src*="vimeo"], iframe[src*="wistia"], iframe[src*="loom.com"]';
 const SOCIAL_PROOF_NUMBER_PATTERN =
@@ -17,7 +17,7 @@ const SOCIAL_PROOF_NUMBER_PATTERN =
 // is NOT refundable) contains "refund" but means the opposite of risk reversal,
 // so a bare keyword match would misread a no-refund policy as a guarantee.
 const RISK_REVERSAL_PATTERN =
-  /\b(money[-\s]?back|guarantee|free trial|cancel anytime|no credit card|risk[-\s]?free|full refund|100% refund|soddisfatti o rimborsati|garanzia|prova gratuita|disdici quando vuoi|nessuna carta di credito|senza rischio|senza rischi|rimborso garantito|rimborso completo)\b/i;
+  /\b(money[-\s]?back|guarantee[ds]?|free trial|cancel anytime|no credit card|risk[-\s]?free|full refund|100% refund|soddisfatti o rimborsati|garanzia|prova gratuita|disdici quando vuoi|nessuna carta di credito|senza rischio|senza rischi|rimborso garantito|rimborso completo)\b/i;
 // "Transferable/cedibile" is a distinct, milder risk-mitigator some businesses
 // offer instead of refunds (e.g. non-refundable event tickets that can still
 // be passed to someone else) — tracked separately so it's never conflated
@@ -30,7 +30,8 @@ const URGENCY_PATTERN =
 export function analyzeConversion(
   $: CheerioDoc,
   htmlSizeBytes: number,
-  fetchMs: number
+  fetchMs: number,
+  isLocal = false
 ): CategoryResult {
   const findings: Finding[] = [];
   const bodyText = getVisibleText($);
@@ -120,13 +121,7 @@ export function analyzeConversion(
   let firstCtaIndex = -1;
   bodyChildren.each((i, el) => {
     if (firstCtaIndex !== -1) return;
-    const tag = el.tagName?.toLowerCase();
-    if (tag === "a" || tag === "button") {
-      const text = $(el).text().trim();
-      if (text && text.length < 40 && CTA_PATTERN.test(text)) {
-        firstCtaIndex = i;
-      }
-    }
+    if ($(el).is(CTA_SELECTOR) && isCtaElement($, $(el))) firstCtaIndex = i;
   });
   const ctaFoldRatio = firstCtaIndex === -1 ? 1 : firstCtaIndex / totalNodes;
   findings.push({
@@ -158,25 +153,28 @@ export function analyzeConversion(
   const imageCount = $("img").length;
   const resourceCount = scriptCount + stylesheetCount + imageCount;
   const sizeKb = htmlSizeBytes / 1024;
+  // A local dev server's response time (cold compiles, no CDN) says nothing
+  // about the deployed page, so only judge size there.
+  const speedOk = isLocal || fetchMs <= 1500;
+  const speedWarn = isLocal || fetchMs <= 3000;
   findings.push({
     id: "page-weight",
     label: "Estimated page weight & speed",
     status:
-      sizeKb <= 300 && fetchMs <= 1500
+      sizeKb <= 300 && speedOk
         ? "pass"
-        : sizeKb <= 800 && fetchMs <= 3000
+        : sizeKb <= 800 && speedWarn
         ? "warn"
         : "fail",
-    detail: `HTML document is ${sizeKb.toFixed(0)}KB with ${resourceCount} linked resource(s) (${scriptCount} scripts, ${stylesheetCount} stylesheets, ${imageCount} images); server responded in ${fetchMs}ms. A 0.1s speed improvement can lift conversion 8-10%, and over half of mobile visitors abandon pages that take 3+s to load.`,
+    detail: `HTML document is ${sizeKb.toFixed(0)}KB with ${resourceCount} linked resource(s) (${scriptCount} scripts, ${stylesheetCount} stylesheets, ${imageCount} images); ${
+      isLocal ? "response time not judged for a local page" : `server responded in ${fetchMs}ms`
+    }. A 0.1s speed improvement can lift conversion 8-10%, and over half of mobile visitors abandon pages that take 3+s to load.`,
     weight: 2,
   });
 
   const formCount = $("form").length;
   const looseLeadFields = formCount === 0 ? countLeadCaptureFields($, $.root()) : 0;
-  const primaryCtaCount = $("a, button").filter((_, el) => {
-    const text = $(el).text().trim();
-    return text.length > 0 && text.length < 40 && CTA_PATTERN.test(text);
-  }).length;
+  const primaryCtaCount = findCtaElements($).length;
   const hasConversionPath = formCount > 0 || looseLeadFields > 0 || primaryCtaCount > 0;
   findings.push({
     id: "conversion-path",

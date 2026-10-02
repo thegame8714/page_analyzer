@@ -6,8 +6,8 @@ import { analyzeClarity } from "./clarity";
 import { analyzeEfficiency } from "./efficiency";
 import { analyzeGrammar } from "./grammar";
 import { analyzeConversion } from "./conversion";
-import { AnalysisReport, CategoryResult, gradeFromScore } from "./types";
-import { AnalysisError, normalizeUrl } from "./normalizeUrl";
+import { AnalysisReport, CategoryResult, PageData, gradeFromScore } from "./types";
+import { AnalysisError, isLocalUrl, normalizeUrl } from "./normalizeUrl";
 
 export { AnalysisError, normalizeUrl } from "./normalizeUrl";
 
@@ -52,18 +52,42 @@ export async function analyzeLandingPage(rawUrl: string): Promise<AnalysisReport
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
     throw new AnalysisError(
-      `Could not fetch that URL (${message}). Check that it's publicly accessible and try again.`
+      isLocalUrl(url)
+        ? `Could not fetch that URL (${message}). Is your local server running at that address?`
+        : `Could not fetch that URL (${message}). Check that it's publicly accessible and try again.`
     );
   }
 
   if (page.status >= 400) {
     throw new AnalysisError(`The page responded with HTTP ${page.status}.`);
   }
+  return analyzePage(page);
+}
+
+/**
+ * Analyze HTML you already have — e.g. a static page from disk that isn't
+ * served anywhere yet. `url` is the page's real or intended address (a
+ * file:// URL works); it's only used to resolve relative links and images.
+ */
+export async function analyzeHtml(html: string, url: string): Promise<AnalysisReport> {
+  return analyzePage({
+    url,
+    finalUrl: url,
+    status: 200,
+    html,
+    fetchMs: 0,
+    sizeBytes: Buffer.byteLength(html, "utf8"),
+  });
+}
+
+async function analyzePage(page: PageData): Promise<AnalysisReport> {
+  const url = page.url;
   if (!page.html || page.html.trim().length === 0) {
     throw new AnalysisError("The page returned no HTML content to analyze.");
   }
 
   const $ = loadHtml(page.html);
+  const local = isLocalUrl(page.finalUrl);
 
   const [geo, grammar] = await Promise.all([
     analyzeGeo($, page.finalUrl),
@@ -72,7 +96,7 @@ export async function analyzeLandingPage(rawUrl: string): Promise<AnalysisReport
   const seo = analyzeSeo($, page.finalUrl);
   const clarity = analyzeClarity($);
   const efficiency = analyzeEfficiency($, page.sizeBytes);
-  const conversion = analyzeConversion($, page.sizeBytes, page.fetchMs);
+  const conversion = analyzeConversion($, page.sizeBytes, page.fetchMs, local);
 
   const categories = [conversion, seo, geo, clarity, efficiency, grammar];
 

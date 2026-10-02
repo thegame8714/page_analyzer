@@ -146,12 +146,16 @@ export async function analyzeGeo($: CheerioDoc, finalUrl: string): Promise<Categ
     weight: 1,
   });
 
-  const llmsTxt = await checkLlmsTxt(finalUrl);
+  // A bare file:// page has no site root to look in.
+  const checkable = /^https?:/.test(finalUrl);
+  const llmsTxt = checkable ? await checkLlmsTxt(finalUrl) : false;
   findings.push({
     id: "llms-txt",
     label: "llms.txt file",
     status: llmsTxt ? "pass" : "info",
-    detail: llmsTxt
+    detail: !checkable
+      ? "Not checked for a local file. Add an /llms.txt at the site root when you deploy (optional but a nice-to-have in 2026)."
+      : llmsTxt
       ? "An /llms.txt file was found at the site root, giving AI crawlers a curated map of key content."
       : "No /llms.txt found at the site root. This emerging convention helps AI agents find your most important pages (optional but a nice-to-have in 2026).",
     weight: 1,
