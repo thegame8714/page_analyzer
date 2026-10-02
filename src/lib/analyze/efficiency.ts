@@ -1,6 +1,6 @@
 import { CheerioDoc, getMainContentText, getVisibleText } from "./dom";
 import { splitWords } from "./textUtils";
-import { CTA_PATTERN, countLeadCaptureFields } from "./cta";
+import { countLeadCaptureFields, ctaLabel, findCtaElements } from "./cta";
 import { CategoryResult, Finding, gradeFromScore, scoreFromFindings, tr } from "./types";
 
 const STOPWORDS = new Set(
@@ -45,13 +45,12 @@ export function analyzeEfficiency($: CheerioDoc, htmlSizeBytes: number): Categor
     weight: 2,
   });
 
-  const ctaElements = $("a, button").filter((_, el) => {
-    const text = $(el).text().trim();
-    return text.length > 0 && text.length < 40 && CTA_PATTERN.test(text);
-  });
+  const ctaElements = findCtaElements($);
+  // Presence counts anything button-like; "competing asks" only counts real
+  // conversion actions, so "Sign in" / "Add to calendar" don't inflate it.
   const ctaTexts = new Set(
-    ctaElements
-      .map((_, el) => $(el).text().trim().toLowerCase())
+    findCtaElements($, true)
+      .map((_, el) => ctaLabel($(el)).toLowerCase())
       .get()
   );
   findings.push({

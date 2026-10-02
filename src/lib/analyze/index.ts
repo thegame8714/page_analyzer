@@ -1,5 +1,5 @@
 import { loadHtml } from "./dom";
-import { fetchPage } from "./fetchPage";
+import { LocalTargetBlockedError, fetchPage } from "./fetchPage";
 import { analyzeSeo } from "./seo";
 import { analyzeGeo } from "./geo";
 import { analyzeClarity } from "./clarity";
@@ -26,7 +26,7 @@ import {
   gradeFromScore,
   tr,
 } from "./types";
-import { AnalysisError, normalizeUrl } from "./normalizeUrl";
+import { AnalysisError, isLocalUrl, normalizeUrl } from "./normalizeUrl";
 
 export { AnalysisError, normalizeUrl } from "./normalizeUrl";
 
@@ -179,21 +179,38 @@ export async function loadPage(rawUrl: string): Promise<{ url: string; page: Pag
   try {
     page = await fetchPage(url);
   } catch (err) {
+    if (err instanceof LocalTargetBlockedError) {
+      throw new AnalysisError(
+        tr(
+          "Local and private addresses (localhost, 192.168.x.x…) can't be analyzed on the online version. Run the app on your own computer to test pages before publishing them.",
+          "Gli indirizzi locali e privati (localhost, 192.168.x.x…) non si possono analizzare nella versione online. Avvia l'app sul tuo computer per testare le pagine prima di pubblicarle."
+        )
+      );
+    }
     const message = err instanceof Error ? err.message : "Unknown error";
     throw new AnalysisError(
-      tr(
-        `Could not fetch that URL (${message}). Check that it's publicly accessible and try again.`,
-        `Impossibile scaricare l'URL (${message}). Verifica che sia accessibile pubblicamente e riprova.`
-      )
+      isLocalUrl(url)
+        ? tr(
+            `Could not fetch that URL (${message}). Is your local server running at that address?`,
+            `Impossibile scaricare l'URL (${message}). Il tuo server locale è in esecuzione a quell'indirizzo?`
+          )
+        : tr(
+            `Could not fetch that URL (${message}). Check that it's publicly accessible and try again.`,
+            `Impossibile scaricare l'URL (${message}). Verifica che sia accessibile pubblicamente e riprova.`
+          )
     );
   }
   if (page.status >= 400) {
     throw new AnalysisError(tr(`The page responded with HTTP ${page.status}.`, `La pagina ha risposto con HTTP ${page.status}.`));
   }
+  assertHasHtml(page);
+  return { url, page };
+}
+
+function assertHasHtml(page: PageData) {
   if (!page.html || page.html.trim().length === 0) {
     throw new AnalysisError(tr("The page returned no HTML content to analyze.", "La pagina non ha restituito contenuto HTML da analizzare."));
   }
-  return { url, page };
 }
 
 export interface AnalyzeOptions {
@@ -202,9 +219,27 @@ export interface AnalyzeOptions {
   mode?: FunnelMode;
 }
 
-export async function analyzePage(rawUrl: string, { product, mode = "auto" }: AnalyzeOptions): Promise<AnalysisReport> {
+export async function analyzePage(rawUrl: string, options: AnalyzeOptions): Promise<AnalysisReport> {
   const { url, page } = await loadPage(rawUrl);
+  return analyzeLoadedPage(url, page, options);
+}
+
+/**
+ * Analyze HTML you already have — e.g. a static page from disk that isn't
+ * served anywhere yet. `url` is the page's real or intended address (a
+ * file:// URL works); it's only used to resolve relative links and images.
+ */
+export async function analyzeHtml(html: string, url: string, options: AnalyzeOptions): Promise<AnalysisReport> {
+  const page: PageData = { url, finalUrl: url, status: 200, html, fetchMs: 0, sizeBytes: Buffer.byteLength(html, "utf8") };
+  assertHasHtml(page);
+  return analyzeLoadedPage(url, page, options);
+}
+
+async function analyzeLoadedPage(url: string, page: PageData, { product, mode = "auto" }: AnalyzeOptions): Promise<AnalysisReport> {
   const $ = loadHtml(page.html);
+  // Local pages (localhost, LAN, files) are pre-deploy: response time says
+  // nothing about the published site, so it isn't judged.
+  const local = isLocalUrl(page.finalUrl);
   const base = { product, url, finalUrl: page.finalUrl, fetchedAt: new Date().toISOString() };
 
   const [geo, grammar] = await Promise.all([analyzeGeo($, page.finalUrl, product), analyzeGrammar($, page.finalUrl)]);
@@ -213,7 +248,7 @@ export async function analyzePage(rawUrl: string, { product, mode = "auto" }: An
   const efficiency = analyzeEfficiency($, page.sizeBytes);
 
   if (product === "landing") {
-    const conversion = analyzeLandingConversion($, page.sizeBytes, page.fetchMs);
+    const conversion = analyzeLandingConversion($, page.sizeBytes, page.fetchMs, local);
     const categories = [conversion, seo, geo, clarity, efficiency, grammar];
     const overallScore = weightedScore(categories, LANDING_WEIGHTS);
     return {
@@ -243,7 +278,7 @@ export async function analyzePage(rawUrl: string, { product, mode = "auto" }: An
   const offer = analyzeOffer(salesCtx, detection.type);
   const framework = analyzeFramework(salesCtx);
   const trust = analyzeTrust(salesCtx);
-  const conversion = analyzeConversion(ctx, page.sizeBytes, page.fetchMs);
+  const conversion = analyzeConversion(ctx, page.sizeBytes, page.fetchMs, local);
 
   const categories =
     detection.type === "call"

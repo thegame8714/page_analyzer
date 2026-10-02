@@ -39,6 +39,39 @@ This checks that an email is on the list, not that the visitor owns it:
 anyone who knows an allowed address can get in. For real verification, add
 an emailed one-time link or code.
 
+## Analyzing pages before you deploy them
+
+The analyzer accepts local pages as well as live URLs, so you can check a page
+while you're still editing it.
+
+**Web UI**: run `npm run dev`, then paste a local address such as
+`localhost:4321/landing` (it defaults to `http://` for local hosts).
+
+**CLI / Claude Code agent**: the same analysis from the terminal:
+
+```bash
+npx tsx scripts/analyze.ts localhost:3000/pricing                    # a local dev server
+npx tsx scripts/analyze.ts ./site/index.html                         # an HTML file (or a folder with index.html)
+npx tsx scripts/analyze.ts https://example.com --json
+npx tsx scripts/analyze.ts https://example.com --product evergreen --lang it
+```
+
+`--product` is `landing` (default) or `evergreen`; `--funnel auto|call|checkout`
+applies to Evergreen; `--lang en|it` picks the report language. The CLI doesn't
+need to sign in.
+
+The `landing-page-analyzer` agent (`.claude/agents/`) wraps this CLI, so in
+Claude Code you can just ask it to audit a page, local or live.
+
+For local pages, HTTPS, response time and `llms.txt` aren't judged: they say
+nothing about the deployed site.
+
+**Deployed instance**: local and private addresses are blocked when
+`NODE_ENV=production`, so the public site (e.g. on Vercel) can't be used to make
+the server fetch its own internal network. Set `ALLOW_LOCAL_URLS=1` if you run
+the production build on your own machine and want them back. The check is
+hostname-based and applies to every redirect hop.
+
 ## Top 3 competitors
 
 > **Currently disabled.** The section is shown greyed out with a "Coming soon"

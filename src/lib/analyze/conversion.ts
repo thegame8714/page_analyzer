@@ -18,7 +18,8 @@ import { CategoryResult, Finding, tr } from "./types";
 export function analyzeConversion(
   ctx: CoachingContext,
   htmlSizeBytes: number,
-  fetchMs: number
+  fetchMs: number,
+  isLocal = false
 ): CategoryResult {
   const { $, html } = ctx;
   const findings: Finding[] = [];
@@ -106,10 +107,16 @@ export function analyzeConversion(
   findings.push({
     id: "page-weight",
     label: tr("Estimated page weight & speed", "Peso e velocità stimati della pagina"),
-    status: sizeKb <= 300 && fetchMs <= 1500 && scriptCount <= 25 ? "pass" : sizeKb <= 800 && fetchMs <= 3000 ? "warn" : "fail",
+    // A local dev server's response time says nothing about the deployed page.
+    status:
+      sizeKb <= 300 && (isLocal || fetchMs <= 1500) && scriptCount <= 25
+        ? "pass"
+        : sizeKb <= 800 && (isLocal || fetchMs <= 3000)
+        ? "warn"
+        : "fail",
     detail: tr(
-      `HTML is ${sizeKb.toFixed(0)}KB with ${scriptCount} scripts, ${stylesheetCount} stylesheets and ${imageCount} images (${lazyImages} lazy-loaded); server responded in ${fetchMs}ms. Long sales pages from builders get heavy fast, and every extra second of load costs conversions.`,
-      `L'HTML pesa ${sizeKb.toFixed(0)}KB con ${scriptCount} script, ${stylesheetCount} fogli di stile e ${imageCount} immagini (${lazyImages} con caricamento differito); il server ha risposto in ${fetchMs}ms. Le pagine di vendita lunghe fatte con i page builder si appesantiscono in fretta, e ogni secondo di caricamento in più costa conversioni.`
+      `HTML is ${sizeKb.toFixed(0)}KB with ${scriptCount} scripts, ${stylesheetCount} stylesheets and ${imageCount} images (${lazyImages} lazy-loaded); ${isLocal ? "response time not judged for a local page" : `server responded in ${fetchMs}ms`}. Long sales pages from builders get heavy fast, and every extra second of load costs conversions.`,
+      `L'HTML pesa ${sizeKb.toFixed(0)}KB con ${scriptCount} script, ${stylesheetCount} fogli di stile e ${imageCount} immagini (${lazyImages} con caricamento differito); ${isLocal ? "tempo di risposta non valutato per una pagina locale" : `il server ha risposto in ${fetchMs}ms`}. Le pagine di vendita lunghe fatte con i page builder si appesantiscono in fretta, e ogni secondo di caricamento in più costa conversioni.`
     ),
     weight: 2,
     standard: STANDARDS.cwv,

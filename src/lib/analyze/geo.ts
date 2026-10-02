@@ -204,12 +204,19 @@ export async function analyzeGeo($: CheerioDoc, finalUrl: string, product: Produ
     weight: 1,
   });
 
-  const llmsTxt = await checkLlmsTxt(finalUrl);
+  // A bare file:// page has no site root to look in.
+  const checkable = /^https?:/.test(finalUrl);
+  const llmsTxt = checkable ? await checkLlmsTxt(finalUrl) : false;
   findings.push({
     id: "llms-txt",
     label: tr("llms.txt file", "File llms.txt"),
     status: llmsTxt ? "pass" : "info",
-    detail: llmsTxt
+    detail: !checkable
+      ? tr(
+          "Not checked for a local file. Add an /llms.txt at the site root when you deploy (optional but a nice-to-have in 2026).",
+          "Non controllato per un file locale. Aggiungi un /llms.txt nella root del sito quando lo pubblichi (facoltativo, ma consigliato nel 2026)."
+        )
+      : llmsTxt
       ? tr(
           "An /llms.txt file was found at the site root, giving AI crawlers a curated map of key content.",
           "Trovato un file /llms.txt nella root del sito: offre ai crawler AI una mappa curata dei contenuti chiave."

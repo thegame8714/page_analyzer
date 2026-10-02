@@ -233,6 +233,17 @@ export async function resolveNextStep(ctx: CoachingContext, detection: FunnelDet
         kind: "embedded",
       };
     }
+    // No link to follow, but the booking/application form is right on the page.
+    if (hasBookingWidget(ctx.$("body").html() ?? "")) {
+      return {
+        steps: [landing, { label: tr("Booking form (on page)", "Form di prenotazione (nella pagina)"), kind: "embedded", notes: [] }],
+        $step: $,
+        scopeHtml: ctx.html,
+        stepUrl: ctx.finalUrl,
+        clicks: 0,
+        kind: "embedded",
+      };
+    }
     return {
       steps: [landing, { label: tr("No CTA destination found", "Nessuna destinazione della CTA"), kind: "unknown", notes: [] }],
       clicks: null,

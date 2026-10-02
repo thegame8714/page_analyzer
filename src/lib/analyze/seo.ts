@@ -1,4 +1,5 @@
 import { CheerioDoc, absoluteUrl, getHeadings, getJsonLdBlocks } from "./dom";
+import { isLocalUrl } from "./normalizeUrl";
 import { CategoryResult, Finding, FindingItem, Product, gradeFromScore, scoreFromFindings, tr } from "./types";
 
 const MAX_ITEMS = 25;
@@ -288,12 +289,20 @@ export function analyzeSeo($: CheerioDoc, finalUrl: string, product: Product): C
   });
 
   const isHttps = finalUrl.startsWith("https://");
+  const isLocal = isLocalUrl(finalUrl);
   findings.push({
     id: "https",
     label: tr("HTTPS", "HTTPS"),
-    status: isHttps ? "pass" : "fail",
+    // A local dev server is normally plain http — that says nothing about
+    // how the deployed page will be served, so don't penalize it.
+    status: isHttps ? "pass" : isLocal ? "info" : "fail",
     detail: isHttps
       ? tr("Page is served over HTTPS.", "La pagina è servita tramite HTTPS.")
+      : isLocal
+      ? tr(
+          "Local page, so HTTPS isn't checked. Make sure the deployed site is served over HTTPS.",
+          "Pagina locale, quindi l'HTTPS non viene controllato. Assicurati che il sito pubblicato sia servito tramite HTTPS."
+        )
       : tr("Page is not served over HTTPS, which hurts trust and rankings.", "La pagina non è servita tramite HTTPS: danneggia fiducia e posizionamento."),
     weight: 2,
   });
